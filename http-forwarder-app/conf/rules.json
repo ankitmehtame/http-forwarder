@@ -1,0 +1,7 @@
+[
+    {
+        "method": "GET",
+        "event": "TEST",
+        "targetUrl": "http://dummy.restapiexample.com/api/v1/employees"
+    }
+]

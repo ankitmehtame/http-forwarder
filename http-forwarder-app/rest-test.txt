@@ -1,0 +1,15 @@
+GET http://localhost:5000/forward
+
+###
+
+GET https://localhost:5001/forward
+
+###
+
+GET https://localhost:5001/forward/test
+
+Accept: application/json;q=0.9,text/plain
+
+###
+
+GET http://dummy.restapiexample.com/api/v1/employees
