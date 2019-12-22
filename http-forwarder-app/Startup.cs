@@ -30,7 +30,7 @@ namespace http_forwarder_app
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger, ForwardingRulesReader forwardingRulesReader, AppState appState)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILoggerFactory loggerFactory, ILogger<Startup> logger, ForwardingRulesReader forwardingRulesReader, AppState appState)
         {
             if (env.IsDevelopment())
             {
@@ -47,6 +47,8 @@ namespace http_forwarder_app
             {
                 endpoints.MapControllers();
             });
+
+            loggerFactory.AddFile("logs/http-forwarder-{Date}.log");
 
             var rules = forwardingRulesReader.Read();
             appState.Rules = rules?.ToArray() ?? System.Array.Empty<ForwardingRule>();
