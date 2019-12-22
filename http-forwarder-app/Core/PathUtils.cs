@@ -8,15 +8,23 @@ namespace http_forwarder_app.Core
 {
     public static class PathUtils
     {
-        public static string GetConfFilePath(this IConfiguration configuration, string fileName)
+        public static string GetConfDirPath(this IConfiguration configuration)
         {
             var appRoot = configuration.GetAppRoot();
-            var pathsForConf = new [] { Path.Combine(appRoot, $"conf/{fileName}"), Path.Combine(appRoot, fileName) };
-            var filePath = GetFilePath(pathsForConf);
-            return filePath ?? pathsForConf.First();
+            var pathsForConf = new [] { Path.Combine(appRoot, $"conf"), Path.Combine(appRoot, @".\..\conf") };
+            var realPath = pathsForConf.FirstOrDefault(Directory.Exists) ?? pathsForConf.First();
+            return realPath;
         }
 
-        private static string GetFilePath(string[] possiblePaths)
+        public static string GetConfFilePath(this IConfiguration configuration, string fileName)
+        {
+            var pathForConf = configuration.GetConfDirPath();
+            var possiblePath = Path.Combine(pathForConf, fileName);
+            var filePath = GetFilePath(possiblePath) ?? possiblePath;
+            return filePath;
+        }
+
+        private static string GetFilePath(params string[] possiblePaths)
         {
             return possiblePaths.FirstOrDefault(File.Exists);
         }

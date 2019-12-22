@@ -50,6 +50,7 @@ namespace http_forwarder_app
 
             loggerFactory.AddFile("logs/http-forwarder-{Date}.log");
 
+            forwardingRulesReader.Init();
             var rules = forwardingRulesReader.Read();
             appState.Rules = rules?.ToArray() ?? System.Array.Empty<ForwardingRule>();
         }
