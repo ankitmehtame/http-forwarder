@@ -4,7 +4,7 @@ Forwards http traffic onto private network
 ### To build docker image
 From the root directory
 ```
-docker build -t http-forwarder-app .
+docker build -t http-forwarder-app:latest -t http-forwarder-app:0.n .
 ```
 
 ### To run interactively
