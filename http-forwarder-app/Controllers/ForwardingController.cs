@@ -1,6 +1,4 @@
-﻿using System;
-using System.IO;
-using System.Linq;
+﻿using System.IO;
 using System.Threading.Tasks;
 using http_forwarder_app.Core;
 using http_forwarder_app.Models;
@@ -19,15 +17,16 @@ namespace http_forwarder_app.Controllers
     {
         private readonly ILogger<ForwardingController> _logger;
 
-        public ForwardingController(ILogger<ForwardingController> logger, AppState appState, IRestClient restClient)
+        public ForwardingController(ILogger<ForwardingController> logger, ForwardingRulesReader rulesReader, IRestClient restClient)
         {
             _logger = logger;
-            AppState = appState;
+            RulesReader = rulesReader;
             RestClient = restClient;
         }
 
         private AppState AppState { get; }
-        public IRestClient RestClient { get; }
+        private ForwardingRulesReader RulesReader { get; }
+        private IRestClient RestClient { get; }
 
         [HttpGet]
         public object Get()
@@ -46,7 +45,7 @@ namespace http_forwarder_app.Controllers
             {
                 _logger.LogDebug($"First rule - Event: {AppState.Rules[0].Event}, Method: {AppState.Rules[0].Method}, TargetUrl: {AppState.Rules[0].TargetUrl}");
             }
-            var fwdRule = AppState.Rules.FirstOrDefault(r => r.Method == method && string.Equals(r.Event, eventName, StringComparison.OrdinalIgnoreCase));
+            var fwdRule = RulesReader.Find(method, eventName);
             if (fwdRule == null)
             {
                 _logger.LogWarning($"{method} for event {eventName} does not match any rules");
@@ -62,7 +61,7 @@ namespace http_forwarder_app.Controllers
         {
             const string method = "POST";
             _logger.LogDebug($"{method} called with event {eventName}");
-            var fwdRule = AppState.Rules.FirstOrDefault(r => r.Method == method && string.Equals(r.Event, eventName, StringComparison.OrdinalIgnoreCase));
+            var fwdRule = RulesReader.Find(method, eventName);
             if (fwdRule == null)
             {
                 _logger.LogWarning($"{method} for event {eventName} does not match any rules");
@@ -79,7 +78,7 @@ namespace http_forwarder_app.Controllers
         {
             const string method = "PUT";
             _logger.LogDebug($"{method} called with event {eventName}");
-            var fwdRule = AppState.Rules.FirstOrDefault(r => r.Method == method && string.Equals(r.Event, eventName, StringComparison.OrdinalIgnoreCase));
+            var fwdRule = RulesReader.Find(method, eventName);
             if (fwdRule == null)
             {
                 _logger.LogWarning($"{method} for event {eventName} does not match any rules");
@@ -96,7 +95,7 @@ namespace http_forwarder_app.Controllers
         {
             const string method = "DELETE";
             _logger.LogDebug($"{method} called with event {eventName}");
-            var fwdRule = AppState.Rules.FirstOrDefault(r => r.Method == method && string.Equals(r.Event, eventName, StringComparison.OrdinalIgnoreCase));
+            var fwdRule = RulesReader.Find(method, eventName);
             if (fwdRule == null)
             {
                 _logger.LogWarning($"{method} for event {eventName} does not match any rules");

@@ -1,4 +1,4 @@
-using System.Linq;
+using System.IO;
 using http_forwarder_app.Core;
 using http_forwarder_app.Models;
 using Microsoft.AspNetCore.Builder;
@@ -50,9 +50,27 @@ namespace http_forwarder_app
 
             loggerFactory.AddFile("logs/http-forwarder-{Date}.log");
 
+            logger.LogInformation($"Environment is {env.EnvironmentName}");
+
+            var certPath = System.Environment.GetEnvironmentVariable("ASPNETCORE_Kestrel__Certificates__Default__Path");
+            logger.LogInformation($"Cert path is {certPath}");
+            if (!string.IsNullOrEmpty(certPath))
+            {
+                var certDir = Path.GetDirectoryName(certPath);
+                logger.LogDebug($"Cert dir is {certDir}");
+                logger.LogDebug($"Cert dir exists? {Directory.Exists(certDir)}");
+                if (File.Exists(certPath))
+                {
+                    logger.LogInformation($"Cert file exists at {certPath}");
+                }
+                else
+                {
+                    logger.LogWarning($"Cert file does not exist at {certPath}");
+                    logger.LogDebug($"Files at {certDir} are: {string.Join(", ", Directory.GetFiles(certDir))}");
+                }
+            }
+            
             forwardingRulesReader.Init();
-            var rules = forwardingRulesReader.Read();
-            appState.Rules = rules?.ToArray() ?? System.Array.Empty<ForwardingRule>();
         }
     }
 }

@@ -16,5 +16,5 @@ docker run -it --rm -p 5001:443 -p 5000:80 --name http-forwarder-app http-forwar
 ### To save image locally
 From the root directory
 ```
-docker save -o <local path>\http-forwarder-app_v0.n.tar http-forwarder-app:v0.n
+docker save -o <local path>\http-forwarder-app_0.n.tar http-forwarder-app:0.n
 ```
