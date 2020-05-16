@@ -1,4 +1,8 @@
+using System;
 using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using http_forwarder_app.Core;
 using http_forwarder_app.Models;
 using Microsoft.AspNetCore.Builder;
@@ -52,25 +56,57 @@ namespace http_forwarder_app
 
             logger.LogInformation($"Environment is {env.EnvironmentName}");
 
-            var certPath = System.Environment.GetEnvironmentVariable("ASPNETCORE_Kestrel__Certificates__Default__Path");
-            logger.LogInformation($"Cert path is {certPath}");
-            if (!string.IsNullOrEmpty(certPath))
+            var certFile = Configuration.GetValue<string>("CERT_PATH");
+            var certKeyFile = Configuration.GetValue<string>("CERT_KEY_PATH");
+
+            logger.LogInformation($"Looking for cert {certFile} and key {certKeyFile}");
+            logger.LogInformation($"Cert file exists? {File.Exists(certFile)} and key file exists? {File.Exists(certKeyFile)}");
+            if (!string.IsNullOrEmpty(certFile) && !string.IsNullOrEmpty(certKeyFile))
             {
-                var certDir = Path.GetDirectoryName(certPath);
-                logger.LogDebug($"Cert dir is {certDir}");
-                logger.LogDebug($"Cert dir exists? {Directory.Exists(certDir)}");
-                if (File.Exists(certPath))
-                {
-                    logger.LogInformation($"Cert file exists at {certPath}");
-                }
-                else
-                {
-                    logger.LogWarning($"Cert file does not exist at {certPath}");
-                    logger.LogDebug($"Files at {certDir} are: {string.Join(", ", Directory.GetFiles(certDir))}");
-                }
+                var pfxFile = Configuration.GetValue<string>("ASPNETCORE_Kestrel__Certificates__Default__Path");
+                var pfxPwd = Configuration.GetValue<string>("ASPNETCORE_Kestrel__Certificates__Default__Password");
+                GeneratePfx(certFile, certKeyFile, pfxPwd, pfxFile, logger);
+            }
+            forwardingRulesReader.Init();
+        }
+
+        private static void GeneratePfx(string certFile, string keyFile, string pfxPwd, string pfxFile, ILogger logger)
+        {
+            logger?.LogInformation($"Loading ssl cert from {certFile}");
+            var pemCert = GetPemCertificate(certFile, keyFile);
+            var pfxBytes = pemCert.Export(X509ContentType.Pfx, pfxPwd);
+            
+            logger?.LogInformation($"Writing pfx to {pfxFile}");
+
+            if (File.Exists(pfxFile))
+            {
+                File.Delete(pfxFile);
+            }
+            File.WriteAllBytes(pfxFile, pfxBytes);
+        }
+
+        private static X509Certificate2 GetPemCertificate(string certFile, string certKeyFile)
+        {
+            var rsa = RSA.Create();
+            string pemContents = File.ReadAllText(certKeyFile);
+            const string RsaPrivateKeyHeader = "-----BEGIN RSA PRIVATE KEY-----";
+            const string PrivateKeyHeader = "-----BEGIN PRIVATE KEY-----";
+            
+            var keyFileContents = string.Join("\n", File.ReadAllLines(certKeyFile).Where((l) => !(l.StartsWith("-----") && l.EndsWith("-----"))));
+            if(pemContents.StartsWith(PrivateKeyHeader))
+            {
+                rsa.ImportPkcs8PrivateKey(Convert.FromBase64String(keyFileContents), out var _);
+            }
+            else if(pemContents.StartsWith(RsaPrivateKeyHeader))
+            {
+                rsa.ImportRSAPrivateKey(Convert.FromBase64String(keyFileContents), out var _);
+            }
+            else
+            {
+                throw new InvalidOperationException($"Expected key file to start with {PrivateKeyHeader} or {RsaPrivateKeyHeader}");
             }
             
-            forwardingRulesReader.Init();
+            return new X509Certificate2(certFile).CopyWithPrivateKey(rsa);
         }
     }
 }
