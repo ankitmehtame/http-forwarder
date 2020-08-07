@@ -5,6 +5,7 @@ using http_forwarder_app.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.OpenApi.Models;  
 
 namespace http_forwarder_app.Controllers
 {
@@ -56,9 +57,12 @@ namespace http_forwarder_app.Controllers
             await HttpContext.CopyHttpResponse(callResp);
         }
 
+        /// <summary>
+        /// Post method can take body also
+        /// </summary>
         [HttpPost]
         [Route("{eventName}")]
-        public async Task Post(string eventName, [FromBody] dynamic requestBody = null)
+        public async Task Post(string eventName)
         {
             const string method = "POST";
             _logger.LogDebug($"{method} called with event {eventName}");
@@ -78,9 +82,12 @@ namespace http_forwarder_app.Controllers
             await HttpContext.CopyHttpResponse(callResp);
         }
 
+        /// <summary>
+        /// Put method can take body also
+        /// </summary>
         [HttpPut]
         [Route("{eventName}")]
-        public async Task Put(string eventName, [FromBody] dynamic requestBody = null)
+        public async Task Put(string eventName)
         {
             const string method = "PUT";
             _logger.LogDebug($"{method} called with event {eventName}");
