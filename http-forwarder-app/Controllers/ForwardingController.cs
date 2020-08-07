@@ -64,7 +64,6 @@ namespace http_forwarder_app.Controllers
         public async Task Post(string eventName, [FromBody] dynamic requestBody)
         {
             const string method = "POST";
-            _logger.LogDebug($"{method} called with event {eventName}");
             var fwdRule = RulesReader.Find(method, eventName);
             if (fwdRule == null)
             {
@@ -72,6 +71,11 @@ namespace http_forwarder_app.Controllers
                 return;
             }
             var body = await GetBodyFromHttpRequest(HttpContext.Request);
+            _logger.LogDebug($"{method} called with event {eventName} and body {body}");
+            if (string.IsNullOrEmpty(body))
+            {
+                _logger.LogWarning($"Body can't be null");
+            }
             var callResp = await RestClient.MakePostCall(eventName, fwdRule.TargetUrl, body);
             await HttpContext.CopyHttpResponse(callResp);
         }
@@ -84,7 +88,6 @@ namespace http_forwarder_app.Controllers
         public async Task Put(string eventName, [FromBody] dynamic requestBody)
         {
             const string method = "PUT";
-            _logger.LogDebug($"{method} called with event {eventName}");
             var fwdRule = RulesReader.Find(method, eventName);
             if (fwdRule == null)
             {
@@ -92,6 +95,11 @@ namespace http_forwarder_app.Controllers
                 return;
             }
             var body = await GetBodyFromHttpRequest(HttpContext.Request);
+            _logger.LogDebug($"{method} called with event {eventName} and body {body}");
+            if (string.IsNullOrEmpty(body))
+            {
+                _logger.LogWarning($"Body can't be null");
+            }
             var callResp = await RestClient.MakePutCall(eventName, fwdRule.TargetUrl, body);
             await HttpContext.CopyHttpResponse(callResp);
         }
