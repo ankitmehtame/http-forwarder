@@ -22,7 +22,7 @@ namespace http_forwarder_app.Core
         public async Task<HttpResponseMessage> MakePostCall(string eventName, string targetUrl, string content)
         {
             var client = HttpClientFactory.CreateClient(eventName);
-            var resp = await client.PostAsync(targetUrl, new StringContent(content));
+            var resp = await client.PostAsync(targetUrl, new StringContent(content ?? string.Empty));
             return resp;
         }
 
@@ -36,7 +36,7 @@ namespace http_forwarder_app.Core
         public async Task<HttpResponseMessage> MakePutCall(string eventName, string targetUrl, string content)
         {
             var client = HttpClientFactory.CreateClient(eventName);
-            var resp = await client.PutAsync(targetUrl, new StringContent(content));
+            var resp = await client.PutAsync(targetUrl, new StringContent(content ?? string.Empty));
             return resp;
         }
     }

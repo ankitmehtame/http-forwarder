@@ -28,6 +28,8 @@ namespace http_forwarder_app
         {
             services.AddControllers();
             services.AddHttpClient();
+            services.AddSwaggerGen();
+
             services.AddSingleton<IRestClient, RestClient>();
             services.AddSingleton<AppState, AppState>();
             services.AddSingleton<ForwardingRulesReader, ForwardingRulesReader>();
@@ -43,6 +45,13 @@ namespace http_forwarder_app
 
             app.UseHttpsRedirection();
 
+            app.UseSwagger();
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Forwarder");
+                c.RoutePrefix = string.Empty;
+            });
+
             app.UseRouting();
 
             app.UseAuthorization();
@@ -52,7 +61,7 @@ namespace http_forwarder_app
                 endpoints.MapControllers();
             });
 
-            loggerFactory.AddFile("logs/http-forwarder-{Date}.log");
+            loggerFactory.AddFile("logs/http-forwarder-{Date}.log", LogLevel.Debug);
 
             logger.LogInformation($"Environment is {env.EnvironmentName}");
 

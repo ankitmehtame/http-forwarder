@@ -17,11 +17,12 @@ namespace http_forwarder_app.Controllers
     {
         private readonly ILogger<ForwardingController> _logger;
 
-        public ForwardingController(ILogger<ForwardingController> logger, ForwardingRulesReader rulesReader, IRestClient restClient)
+        public ForwardingController(ILogger<ForwardingController> logger, ForwardingRulesReader rulesReader, AppState appState, IRestClient restClient)
         {
             _logger = logger;
             RulesReader = rulesReader;
             RestClient = restClient;
+            AppState = appState;
         }
 
         private AppState AppState { get; }
@@ -57,7 +58,7 @@ namespace http_forwarder_app.Controllers
 
         [HttpPost]
         [Route("{eventName}")]
-        public async Task Post(string eventName)
+        public async Task Post(string eventName, [FromBody] dynamic requestBody = null)
         {
             const string method = "POST";
             _logger.LogDebug($"{method} called with event {eventName}");
@@ -74,7 +75,7 @@ namespace http_forwarder_app.Controllers
 
         [HttpPut]
         [Route("{eventName}")]
-        public async Task Put(string eventName)
+        public async Task Put(string eventName, [FromBody] dynamic requestBody = null)
         {
             const string method = "PUT";
             _logger.LogDebug($"{method} called with event {eventName}");
