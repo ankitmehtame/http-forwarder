@@ -69,6 +69,11 @@ namespace http_forwarder_app.Controllers
                 return;
             }
             var body = await GetBodyFromHttpRequest(HttpContext.Request);
+            if (fwdRule.BodyRequired && string.IsNullOrEmpty(body))
+            {
+                _logger.LogWarning($"Rule {eventName} required body");
+                return;
+            }
             var callResp = await RestClient.MakePostCall(eventName, fwdRule.TargetUrl, body);
             await HttpContext.CopyHttpResponse(callResp);
         }
@@ -86,6 +91,11 @@ namespace http_forwarder_app.Controllers
                 return;
             }
             var body = await GetBodyFromHttpRequest(HttpContext.Request);
+            if (fwdRule.BodyRequired && string.IsNullOrEmpty(body))
+            {
+                _logger.LogWarning($"Rule {eventName} required body");
+                return;
+            }
             var callResp = await RestClient.MakePutCall(eventName, fwdRule.TargetUrl, body);
             await HttpContext.CopyHttpResponse(callResp);
         }
