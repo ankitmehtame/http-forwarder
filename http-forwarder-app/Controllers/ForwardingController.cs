@@ -5,7 +5,6 @@ using http_forwarder_app.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Microsoft.OpenApi.Models;  
 
 namespace http_forwarder_app.Controllers
 {
@@ -62,7 +61,7 @@ namespace http_forwarder_app.Controllers
         /// </summary>
         [HttpPost]
         [Route("{eventName}")]
-        public async Task Post(string eventName)
+        public async Task Post(string eventName, [FromBody] dynamic requestBody)
         {
             const string method = "POST";
             _logger.LogDebug($"{method} called with event {eventName}");
@@ -73,11 +72,6 @@ namespace http_forwarder_app.Controllers
                 return;
             }
             var body = await GetBodyFromHttpRequest(HttpContext.Request);
-            if (fwdRule.BodyRequired && string.IsNullOrEmpty(body))
-            {
-                _logger.LogWarning($"Rule {eventName} required body");
-                return;
-            }
             var callResp = await RestClient.MakePostCall(eventName, fwdRule.TargetUrl, body);
             await HttpContext.CopyHttpResponse(callResp);
         }
@@ -87,7 +81,7 @@ namespace http_forwarder_app.Controllers
         /// </summary>
         [HttpPut]
         [Route("{eventName}")]
-        public async Task Put(string eventName)
+        public async Task Put(string eventName, [FromBody] dynamic requestBody)
         {
             const string method = "PUT";
             _logger.LogDebug($"{method} called with event {eventName}");
@@ -98,11 +92,6 @@ namespace http_forwarder_app.Controllers
                 return;
             }
             var body = await GetBodyFromHttpRequest(HttpContext.Request);
-            if (fwdRule.BodyRequired && string.IsNullOrEmpty(body))
-            {
-                _logger.LogWarning($"Rule {eventName} required body");
-                return;
-            }
             var callResp = await RestClient.MakePutCall(eventName, fwdRule.TargetUrl, body);
             await HttpContext.CopyHttpResponse(callResp);
         }
