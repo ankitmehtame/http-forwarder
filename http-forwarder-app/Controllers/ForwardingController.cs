@@ -75,6 +75,7 @@ namespace http_forwarder_app.Controllers
             if (string.IsNullOrEmpty(body))
             {
                 _logger.LogWarning($"Body can't be null");
+                return;
             }
             var callResp = await RestClient.MakePostCall(eventName, fwdRule.TargetUrl, body);
             await HttpContext.CopyHttpResponse(callResp);
@@ -99,6 +100,7 @@ namespace http_forwarder_app.Controllers
             if (string.IsNullOrEmpty(body))
             {
                 _logger.LogWarning($"Body can't be null");
+                return;
             }
             var callResp = await RestClient.MakePutCall(eventName, fwdRule.TargetUrl, body);
             await HttpContext.CopyHttpResponse(callResp);
