@@ -61,7 +61,7 @@ namespace http_forwarder_app.Controllers
         /// </summary>
         [HttpPost]
         [Route("{eventName}")]
-        public async Task Post(string eventName, [FromBody] dynamic requestBody)
+        public async Task Post(string eventName /*, [FromBody] dynamic requestBody */)
         {
             const string method = "POST";
             var fwdRule = RulesReader.Find(method, eventName);
@@ -75,6 +75,7 @@ namespace http_forwarder_app.Controllers
             if (string.IsNullOrEmpty(body))
             {
                 _logger.LogWarning($"Body can't be null");
+                Response.StatusCode = StatusCodes.Status400BadRequest;
                 return;
             }
             var callResp = await RestClient.MakePostCall(eventName, fwdRule.TargetUrl, body);
@@ -86,7 +87,7 @@ namespace http_forwarder_app.Controllers
         /// </summary>
         [HttpPut]
         [Route("{eventName}")]
-        public async Task Put(string eventName, [FromBody] dynamic requestBody)
+        public async Task Put(string eventName /*, [FromBody] dynamic requestBody */)
         {
             const string method = "PUT";
             var fwdRule = RulesReader.Find(method, eventName);
@@ -100,6 +101,7 @@ namespace http_forwarder_app.Controllers
             if (string.IsNullOrEmpty(body))
             {
                 _logger.LogWarning($"Body can't be null");
+                Response.StatusCode = StatusCodes.Status400BadRequest;
                 return;
             }
             var callResp = await RestClient.MakePutCall(eventName, fwdRule.TargetUrl, body);
