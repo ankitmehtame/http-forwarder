@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Net.Mime;
 using System.Threading.Tasks;
 using http_forwarder_app.Core;
 using http_forwarder_app.Models;
@@ -60,6 +61,7 @@ namespace http_forwarder_app.Controllers
         /// Post method can take body also
         /// </summary>
         [HttpPost]
+        [Consumes(MediaTypeNames.Text.Plain, MediaTypeNames.Application.Json, MediaTypeNames.Image.Jpeg, MediaTypeNames.Application.Octet, MediaTypeNames.Application.Zip, MediaTypeNames.Image.Tiff, MediaTypeNames.Text.Html, MediaTypeNames.Text.RichText, MediaTypeNames.Text.Xml)]
         [Route("{eventName}")]
         public async Task Post(string eventName /*, [FromBody] dynamic requestBody */)
         {
@@ -72,11 +74,15 @@ namespace http_forwarder_app.Controllers
             }
             var body = await GetBodyFromHttpRequest(HttpContext.Request);
             _logger.LogDebug($"{method} called with event {eventName} and body {body}");
-            if (string.IsNullOrEmpty(body))
+            if (string.IsNullOrEmpty(body) && fwdRule.HasContent)
             {
                 _logger.LogWarning($"Body can't be null");
                 Response.StatusCode = StatusCodes.Status400BadRequest;
                 return;
+            }
+            if (fwdRule.Content != null)
+            {
+                body = fwdRule.Content;
             }
             var callResp = await RestClient.MakePostCall(eventName, fwdRule.TargetUrl, body);
             await HttpContext.CopyHttpResponse(callResp);
@@ -98,11 +104,15 @@ namespace http_forwarder_app.Controllers
             }
             var body = await GetBodyFromHttpRequest(HttpContext.Request);
             _logger.LogDebug($"{method} called with event {eventName} and body {body}");
-            if (string.IsNullOrEmpty(body))
+            if (string.IsNullOrEmpty(body) && fwdRule.HasContent)
             {
                 _logger.LogWarning($"Body can't be null");
                 Response.StatusCode = StatusCodes.Status400BadRequest;
                 return;
+            }
+            if (fwdRule.Content != null)
+            {
+                body = fwdRule.Content;
             }
             var callResp = await RestClient.MakePutCall(eventName, fwdRule.TargetUrl, body);
             await HttpContext.CopyHttpResponse(callResp);

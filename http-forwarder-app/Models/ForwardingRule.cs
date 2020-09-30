@@ -9,5 +9,10 @@ namespace http_forwarder_app.Models
         public string Event { get; set; }
 
         public string TargetUrl { get; set; }
+
+        [DefaultValue(true)]
+        public bool HasContent { get; set; } = true;
+
+        public string Content { get; set; } = null;
     }
 }
