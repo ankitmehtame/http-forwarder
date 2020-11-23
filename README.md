@@ -22,7 +22,7 @@ docker run --init -d --name="http-forwarder" -e "TZ=Asia/Singapore" -e SSL_PORT=
 ### To save image locally
 From the root directory
 ```
-docker save -o <local path>\http-forwarder-app_0.n.tar http-forwarder-app:0.n
+docker save -o <local path>\http-forwarder-app_0.n.tar http-forwarder-app:latest http-forwarder-app:0.n
 ```
 
 ### To load image
