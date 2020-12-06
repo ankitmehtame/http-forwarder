@@ -26,17 +26,23 @@ namespace http_forwarder_app
                         { "ASPNETCORE_HTTPS_PORT", sslPort },
                         { "ASPNETCORE_URLS", "https://+;http://+" },
                         { "ASPNETCORE_Kestrel__Certificates__Default__Password", Guid.NewGuid().ToString() },
-                        { "ASPNETCORE_Kestrel__Certificates__Default__Path", Path.Combine(Path.GetTempPath(), "aspnetapp.pfx") }
+                        { "ASPNETCORE_Kestrel__Certificates__Default__Path", Path.Combine(Path.GetTempPath(), "aspnetapp.pfx") },
                     };
-                    foreach(var pair in newAdditions)
-                    {
-                        Environment.SetEnvironmentVariable(pair.Key, pair.Value);
-                        newArgs.Add("--" + pair.Key);
-                        newArgs.Add(pair.Value);
-                    }
+                    AddEnvironmentVariables(newArgs, newAdditions);
                 }
+                AddEnvironmentVariables(newArgs, new Dictionary<string, string> { { "VERSION", Startup.InfoVersion } });
             };
             CreateHostBuilder(newArgs.ToArray()).Build().Run();
+        }
+
+        private static void AddEnvironmentVariables(IList<string> existingArgsList, IDictionary<string, string> additionalEnvVars)
+        {
+            foreach(var pair in additionalEnvVars)
+            {
+                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
+                existingArgsList.Add("--" + pair.Key);
+                existingArgsList.Add(pair.Value);
+            }
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args)

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -15,6 +16,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.OpenApi.Models;
 
 namespace http_forwarder_app
 {
@@ -25,6 +27,9 @@ namespace http_forwarder_app
             Configuration = configuration;
         }
 
+        public static string InfoVersion = Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+        public static string AssemblyVersion = Assembly.GetEntryAssembly().GetName().Version.ToString(2);
+
         public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
@@ -32,8 +37,12 @@ namespace http_forwarder_app
         {
             services.AddControllers();
             services.AddHttpClient();
-            services.AddSwaggerGen();
-
+            services.AddSwaggerGen(c => c.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Version = AssemblyVersion,
+                    Title = "http forwarder app",
+                    Description = "v" + InfoVersion
+                }));
             services.AddSingleton<IRestClient, RestClient>();
             services.AddSingleton<AppState, AppState>();
             services.AddSingleton<ForwardingRulesReader, ForwardingRulesReader>();
@@ -68,6 +77,8 @@ namespace http_forwarder_app
             loggerFactory.AddFile("logs/http-forwarder-{Date}.log", LogLevel.Debug);
 
             logger.LogInformation($"Environment is {env.EnvironmentName}");
+
+            logger.LogInformation($"Info version is {InfoVersion}");
 
             var certFile = Configuration.GetValue<string>("CERT_PATH");
             var certKeyFile = Configuration.GetValue<string>("CERT_KEY_PATH");
