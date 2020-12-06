@@ -47,5 +47,7 @@ jobs:
       run: docker push $IMAGE_ID:$IMAGE_VERSION
 
     - name: Tag latest
-      run: docker push $IMAGE_ID:latest
+      run: |
+          docker tag $IMAGE_NAME $IMAGE_ID:latest
+          docker push $IMAGE_ID:latest
       if: github.ref == 'refs/heads/master'    
