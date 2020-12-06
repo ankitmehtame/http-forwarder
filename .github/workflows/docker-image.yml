@@ -21,7 +21,7 @@ jobs:
         fetch-depth: 0 # avoid shallow clone so nbgv can do its work.
 
     - uses: aarnott/nbgv@v0.3 # https://github.com/AArnott/nbgv
-        id: nbgv
+      id: nbgv
 
     - name: Versioning
         run: echo ${{ steps.nbgv.outputs.SemVer2 }}
