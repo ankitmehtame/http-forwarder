@@ -43,9 +43,9 @@ jobs:
           echo "IMAGE_VERSION=$IMAGE_VERSION" >> $GITHUB_ENV
           docker tag $IMAGE_NAME $IMAGE_ID:$IMAGE_VERSION
 
-    - name: Tag latest
-      run: docker tag $IMAGE_NAME $IMAGE_ID:latest
-      if: github.ref == 'refs/heads/master'
-
     - name: Push
       run: docker push $IMAGE_ID:$IMAGE_VERSION
+
+    - name: Tag latest
+      run: docker push $IMAGE_ID:latest
+      if: github.ref == 'refs/heads/master'    
