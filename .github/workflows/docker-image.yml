@@ -33,19 +33,19 @@ jobs:
     - name: Log into registry
       run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
       
-    - name: Push  
+    - name: Tag image version
       run: |
           IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
-          
           # Change all uppercase to lowercase
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-          # Strip git ref prefix from version
-          VERSION=${{ steps.nbgv.outputs.SimpleVersion }}
-          # Strip "v" prefix from tag name
-          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
-          # Use Docker `latest` tag convention
-          [ "$VERSION" == "master" ] && VERSION=latest
-          echo IMAGE_ID=$IMAGE_ID
-          echo VERSION=$VERSION
-          docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
-          docker push $IMAGE_ID:$VERSION
+          IMAGE_VERSION=${{ steps.nbgv.outputs.SimpleVersion }}
+          echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
+          echo "IMAGE_VERSION=$IMAGE_VERSION" >> $GITHUB_ENV
+          docker tag $IMAGE_NAME $IMAGE_ID:$IMAGE_VERSION
+
+    - name: Tag latest
+      run: docker tag $IMAGE_NAME $IMAGE_ID:latest
+      if: github.ref == 'refs/heads/master'
+
+    - name: Push
+      run: docker push $IMAGE_ID:$IMAGE_VERSION
