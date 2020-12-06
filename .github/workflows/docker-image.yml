@@ -20,7 +20,9 @@ jobs:
       with:
         fetch-depth: 0 # avoid shallow clone so nbgv can do its work.
 
-    - uses: aarnott/nbgv@v0.3 # https://github.com/AArnott/nbgv
+    - uses: dotnet/nbgv@master
+      with:
+        setAllVars: true
       id: nbgv
 
     - name: Versioning
