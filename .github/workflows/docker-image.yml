@@ -24,7 +24,7 @@ jobs:
       id: nbgv
 
     - name: Versioning
-        run: echo ${{ steps.nbgv.outputs.SemVer2 }}
+      run: echo ${{ steps.nbgv.outputs.SemVer2 }}
         
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag $IMAGE_NAME
