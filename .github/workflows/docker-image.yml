@@ -6,7 +6,6 @@ on:
   pull_request:
 
 env:
-  REPO_NAME: http-forwarder
   IMAGE_NAME: http-forwarder-app
 
 jobs:
@@ -36,7 +35,7 @@ jobs:
       
     - name: Tag image version
       run: |
-          IMAGE_ID=${{ secrets.DOCKER_USER }}/$REPO_NAME/$IMAGE_NAME
+          IMAGE_ID=${{ secrets.DOCKER_USER }}/$IMAGE_NAME
           # Change all uppercase to lowercase
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
           IMAGE_VERSION=${{ steps.nbgv.outputs.SimpleVersion }}
