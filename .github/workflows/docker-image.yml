@@ -41,7 +41,7 @@ jobs:
           IMAGE_ID=${{ secrets.DOCKER_USER }}/$IMAGE_NAME
           # Change all uppercase to lowercase
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-          IMAGE_VERSION=${{ steps.nbgv.outputs.SimpleVersion }}
+          IMAGE_VERSION=${{ steps.nbgv.outputs.SimpleVersion }}.${{ github.run_number }}
           echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
           echo "IMAGE_VERSION=$IMAGE_VERSION" >> $GITHUB_ENV
           docker tag $IMAGE_NAME $IMAGE_ID:$IMAGE_VERSION
