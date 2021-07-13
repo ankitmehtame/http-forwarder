@@ -92,4 +92,4 @@ jobs:
       run: |
           docker manifest create $IMAGE_ID:latest --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_AMD64 --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_ARM64 --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_ARM32
           docker manifest push $IMAGE_ID:latest
-      if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/build'
+      if: github.ref == 'refs/heads/master'
