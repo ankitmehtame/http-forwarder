@@ -59,19 +59,12 @@ jobs:
     # arm x64
     - name: Build the Docker image for arm64v8
       run: |
-          IMAGE_ARCH=ARCH_ARM64
+          IMAGE_ARCH=$ARCH_ARM64
           echo "IMAGE_ARCH=$IMAGE_ARCH" >> $GITHUB_ENV
           docker build . --file Dockerfile.debian-arm64 --tag $IMAGE_NAME
 
     - name: Tag image version for arm64v8
-      run: |
-          IMAGE_ID=${{ secrets.DOCKER_USER }}/$IMAGE_NAME
-          # Change all uppercase to lowercase
-          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-          IMAGE_VERSION=${{ steps.nbgv.outputs.SimpleVersion }}.${{ github.run_number }}
-          echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
-          echo "IMAGE_VERSION=$IMAGE_VERSION" >> $GITHUB_ENV
-          docker tag $IMAGE_NAME $IMAGE_ID:$IMAGE_VERSION-$IMAGE_ARCH
+      run: docker tag $IMAGE_NAME $IMAGE_ID:$IMAGE_VERSION-$IMAGE_ARCH
 
     - name: Push image for arm64v8
       run: docker push $IMAGE_ID:$IMAGE_VERSION-$IMAGE_ARCH
@@ -79,19 +72,12 @@ jobs:
     # arm 32
     - name: Build the Docker image for arm32v7
       run: |
-          IMAGE_ARCH=ARCH_ARM32
+          IMAGE_ARCH=$ARCH_ARM32
           echo "IMAGE_ARCH=$IMAGE_ARCH" >> $GITHUB_ENV
           docker build . --file Dockerfile.debian-arm32 --tag $IMAGE_NAME
 
     - name: Tag image version for arm32v7
-      run: |
-          IMAGE_ID=${{ secrets.DOCKER_USER }}/$IMAGE_NAME
-          # Change all uppercase to lowercase
-          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-          IMAGE_VERSION=${{ steps.nbgv.outputs.SimpleVersion }}.${{ github.run_number }}
-          echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
-          echo "IMAGE_VERSION=$IMAGE_VERSION" >> $GITHUB_ENV
-          docker tag $IMAGE_NAME $IMAGE_ID:$IMAGE_VERSION-$IMAGE_ARCH
+      run: docker tag $IMAGE_NAME $IMAGE_ID:$IMAGE_VERSION-$IMAGE_ARCH
 
     - name: Push image for arm32v7
       run: docker push $IMAGE_ID:$IMAGE_VERSION-$IMAGE_ARCH
