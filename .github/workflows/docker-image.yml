@@ -94,4 +94,4 @@ jobs:
       run: |
           docker tag $IMAGE_NAME $IMAGE_ID:latest
           docker push $IMAGE_ID:latest
-      if: github.ref == 'refs/heads/master'    
+      if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/build'
