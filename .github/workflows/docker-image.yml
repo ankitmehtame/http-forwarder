@@ -10,6 +10,9 @@ on:
 
 env:
   IMAGE_NAME: http-forwarder-app
+  ARCH_AMD64: amd64
+  ARCH_ARM64: arm64v8
+  ARCH_ARM32: arm32v7
 
 jobs:
 
@@ -30,13 +33,17 @@ jobs:
     - name: Versioning
       run: echo ${{ steps.nbgv.outputs.SemVer2 }}
         
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag $IMAGE_NAME
-
     - name: Log into registry
       run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
-      
-    - name: Tag image version
+
+      # amd x64
+    - name: Build the Docker image for amd64
+      run: |
+          IMAGE_ARCH=$ARCH_AMD64
+          echo "IMAGE_ARCH=$IMAGE_ARCH" >> $GITHUB_ENV
+          docker build . --file Dockerfile --tag $IMAGE_NAME
+
+    - name: Tag image version for amd64
       run: |
           IMAGE_ID=${{ secrets.DOCKER_USER }}/$IMAGE_NAME
           # Change all uppercase to lowercase
@@ -44,13 +51,45 @@ jobs:
           IMAGE_VERSION=${{ steps.nbgv.outputs.SimpleVersion }}.${{ github.run_number }}
           echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
           echo "IMAGE_VERSION=$IMAGE_VERSION" >> $GITHUB_ENV
-          docker tag $IMAGE_NAME $IMAGE_ID:$IMAGE_VERSION
+          docker tag $IMAGE_NAME $IMAGE_ID:$IMAGE_VERSION-$IMAGE_ARCH
 
-    - name: Push
-      run: docker push $IMAGE_ID:$IMAGE_VERSION
+    - name: Push image for amd64
+      run: docker push $IMAGE_ID:$IMAGE_VERSION-$IMAGE_ARCH
 
+    # arm x64
+    - name: Build the Docker image for arm64v8
+      run: |
+          IMAGE_ARCH=$ARCH_ARM64
+          echo "IMAGE_ARCH=$IMAGE_ARCH" >> $GITHUB_ENV
+          docker build . --file Dockerfile.debian-arm64 --tag $IMAGE_NAME
+
+    - name: Tag image version for arm64v8
+      run: docker tag $IMAGE_NAME $IMAGE_ID:$IMAGE_VERSION-$IMAGE_ARCH
+
+    - name: Push image for arm64v8
+      run: docker push $IMAGE_ID:$IMAGE_VERSION-$IMAGE_ARCH
+
+    # arm 32
+    - name: Build the Docker image for arm32v7
+      run: |
+          IMAGE_ARCH=$ARCH_ARM32
+          echo "IMAGE_ARCH=$IMAGE_ARCH" >> $GITHUB_ENV
+          docker build . --file Dockerfile.debian-arm32 --tag $IMAGE_NAME
+
+    - name: Tag image version for arm32v7
+      run: docker tag $IMAGE_NAME $IMAGE_ID:$IMAGE_VERSION-$IMAGE_ARCH
+
+    - name: Push image for arm32v7
+      run: docker push $IMAGE_ID:$IMAGE_VERSION-$IMAGE_ARCH
+
+    # Create manifest
+    - name: Create manifest and combine all architectures
+      run: |
+          docker manifest create $IMAGE_ID:$IMAGE_VERSION --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_AMD64 --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_ARM64 --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_ARM32
+          docker manifest push $IMAGE_ID:$IMAGE_VERSION
+      
     - name: Tag latest
       run: |
-          docker tag $IMAGE_NAME $IMAGE_ID:latest
-          docker push $IMAGE_ID:latest
-      if: github.ref == 'refs/heads/master'    
+          docker manifest create $IMAGE_ID:latest --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_AMD64 --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_ARM64 --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_ARM32
+          docker manifest push $IMAGE_ID:latest
+      if: github.ref == 'refs/heads/master'
