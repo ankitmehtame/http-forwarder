@@ -84,14 +84,12 @@ jobs:
 
     # Create manifest
     - name: Create manifest and combine all architectures
-      run: docker manifest create $IMAGE_ID:$IMAGE_VERSION --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_AMD64 --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_ARM64 --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_ARM32
-
-    # Push manifest
-    - name: Push the manifest
-      run: docker manifest push $IMAGE_ID:$IMAGE_VERSION
+      run: |
+          docker manifest create $IMAGE_ID:$IMAGE_VERSION --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_AMD64 --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_ARM64 --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_ARM32
+          docker manifest push $IMAGE_ID:$IMAGE_VERSION
       
     - name: Tag latest
       run: |
-          docker tag $IMAGE_NAME $IMAGE_ID:latest
-          docker push $IMAGE_ID:latest
+          docker manifest create $IMAGE_ID:latest --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_AMD64 --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_ARM64 --amend $IMAGE_ID:$IMAGE_VERSION-$ARCH_ARM32
+          docker manifest push $IMAGE_ID:latest
       if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/build'
