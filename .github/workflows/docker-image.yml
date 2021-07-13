@@ -40,6 +40,7 @@ jobs:
     - name: Build the Docker image for amd64
       run: |
           IMAGE_ARCH=$ARCH_AMD64
+          echo "IMAGE_ARCH=$IMAGE_ARCH" >> $GITHUB_ENV
           docker build . --file Dockerfile --tag $IMAGE_NAME
 
     - name: Tag image version for amd64
@@ -59,6 +60,7 @@ jobs:
     - name: Build the Docker image for arm64v8
       run: |
           IMAGE_ARCH=ARCH_ARM64
+          echo "IMAGE_ARCH=$IMAGE_ARCH" >> $GITHUB_ENV
           docker build . --file Dockerfile.debian-arm64 --tag $IMAGE_NAME
 
     - name: Tag image version for arm64v8
@@ -78,6 +80,7 @@ jobs:
     - name: Build the Docker image for arm32v7
       run: |
           IMAGE_ARCH=ARCH_ARM32
+          echo "IMAGE_ARCH=$IMAGE_ARCH" >> $GITHUB_ENV
           docker build . --file Dockerfile.debian-arm32 --tag $IMAGE_NAME
 
     - name: Tag image version for arm32v7
