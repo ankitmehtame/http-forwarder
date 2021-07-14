@@ -1,4 +1,4 @@
-bin\
-obj\
-out\
-.git\
+**/bin/
+**/obj/
+**/out/
+.git/
