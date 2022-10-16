@@ -16,32 +16,32 @@ namespace http_forwarder_app.Core
         public async Task<HttpResponseMessage> MakeGetCall(string eventName, string targetUrl, IDictionary<string, string> headers)
         {
             var client = HttpClientFactory.CreateClient(eventName);
-            var resp = await client.GetAsync(targetUrl);
             AddHeaders(client, headers);
+            var resp = await client.GetAsync(targetUrl);
             return resp;
         }
 
         public async Task<HttpResponseMessage> MakePostCall(string eventName, string targetUrl, string content, IDictionary<string, string> headers)
         {
             var client = HttpClientFactory.CreateClient(eventName);
-            var resp = await client.PostAsync(targetUrl, new StringContent(content ?? string.Empty));
             AddHeaders(client, headers);
+            var resp = await client.PostAsync(targetUrl, new StringContent(content ?? string.Empty));
             return resp;
         }
 
         public async Task<HttpResponseMessage> MakeDeleteCall(string eventName, string targetUrl, IDictionary<string, string> headers)
         {
             var client = HttpClientFactory.CreateClient(eventName);
-            var resp = await client.DeleteAsync(targetUrl);
             AddHeaders(client, headers);
+            var resp = await client.DeleteAsync(targetUrl);
             return resp;
         }
 
         public async Task<HttpResponseMessage> MakePutCall(string eventName, string targetUrl, string content, IDictionary<string, string> headers)
         {
             var client = HttpClientFactory.CreateClient(eventName);
-            var resp = await client.PutAsync(targetUrl, new StringContent(content ?? string.Empty));
             AddHeaders(client, headers);
+            var resp = await client.PutAsync(targetUrl, new StringContent(content ?? string.Empty));
             return resp;
         }
 
