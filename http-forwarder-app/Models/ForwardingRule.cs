@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.ComponentModel;
 
 namespace http_forwarder_app.Models
@@ -14,5 +15,7 @@ namespace http_forwarder_app.Models
         public bool HasContent { get; set; } = true;
 
         public string Content { get; set; } = null;
+
+        public Dictionary<string, string> Headers { get; set; } = new Dictionary<string, string>();
     }
 }

@@ -53,7 +53,7 @@ namespace http_forwarder_app.Controllers
                 _logger.LogWarning($"{method} for event {eventName} does not match any rules");
                 return;
             }
-            var callResp = await RestClient.MakeGetCall(eventName, fwdRule.TargetUrl);
+            var callResp = await RestClient.MakeGetCall(eventName, fwdRule.TargetUrl, fwdRule.Headers);
             await HttpContext.CopyHttpResponse(callResp);
         }
 
@@ -84,7 +84,7 @@ namespace http_forwarder_app.Controllers
             {
                 body = fwdRule.Content;
             }
-            var callResp = await RestClient.MakePostCall(eventName, fwdRule.TargetUrl, body);
+            var callResp = await RestClient.MakePostCall(eventName, fwdRule.TargetUrl, body, fwdRule.Headers);
             await HttpContext.CopyHttpResponse(callResp);
         }
 
@@ -114,7 +114,7 @@ namespace http_forwarder_app.Controllers
             {
                 body = fwdRule.Content;
             }
-            var callResp = await RestClient.MakePutCall(eventName, fwdRule.TargetUrl, body);
+            var callResp = await RestClient.MakePutCall(eventName, fwdRule.TargetUrl, body, fwdRule.Headers);
             await HttpContext.CopyHttpResponse(callResp);
         }
 
@@ -130,7 +130,7 @@ namespace http_forwarder_app.Controllers
                 _logger.LogWarning($"{method} for event {eventName} does not match any rules");
                 return;
             }
-            var callResp = await RestClient.MakeDeleteCall(eventName, fwdRule.TargetUrl);
+            var callResp = await RestClient.MakeDeleteCall(eventName, fwdRule.TargetUrl, fwdRule.Headers);
             await HttpContext.CopyHttpResponse(callResp);
         }
 
