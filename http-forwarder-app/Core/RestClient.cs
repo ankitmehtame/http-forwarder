@@ -51,7 +51,7 @@ namespace http_forwarder_app.Core
             {
                 foreach(var h in headers)
                 {
-                    httpClient.DefaultRequestHeaders.Add(h.Key, h.Value);
+                    httpClient.DefaultRequestHeaders.TryAddWithoutValidation(h.Key, h.Value);
                 }
             }
         }
