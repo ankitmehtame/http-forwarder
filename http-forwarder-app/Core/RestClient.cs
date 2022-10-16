@@ -25,7 +25,9 @@ namespace http_forwarder_app.Core
         {
             var client = HttpClientFactory.CreateClient(eventName);
             AddHeaders(client, headers);
-            var resp = await client.PostAsync(targetUrl, new StringContent(content ?? string.Empty));
+            var contentType = headers["Content-Type"];
+            var finalContent = string.IsNullOrEmpty(contentType) ? new StringContent(content ?? string.Empty) : new StringContent(content ?? string.Empty, System.Text.Encoding.UTF8, contentType);
+            var resp = await client.PostAsync(targetUrl, finalContent);
             return resp;
         }
 
@@ -41,7 +43,9 @@ namespace http_forwarder_app.Core
         {
             var client = HttpClientFactory.CreateClient(eventName);
             AddHeaders(client, headers);
-            var resp = await client.PutAsync(targetUrl, new StringContent(content ?? string.Empty));
+            var contentType = headers["Content-Type"];
+            var finalContent = string.IsNullOrEmpty(contentType) ? new StringContent(content ?? string.Empty) : new StringContent(content ?? string.Empty, System.Text.Encoding.UTF8, contentType);
+            var resp = await client.PutAsync(targetUrl, finalContent);
             return resp;
         }
 
