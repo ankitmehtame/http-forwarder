@@ -1,3 +1,5 @@
+[![Docker Image CI](https://github.com/ankitmehtame/http-forwarder/actions/workflows/docker-image.yml/badge.svg)](https://github.com/ankitmehtame/http-forwarder/actions/workflows/docker-image.yml)
+
 # http-forwarder
 Forwards http traffic onto private network
 
