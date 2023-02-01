@@ -1,4 +1,7 @@
 [![Docker Image CI](https://github.com/ankitmehtame/http-forwarder/actions/workflows/docker-image.yml/badge.svg)](https://github.com/ankitmehtame/http-forwarder/actions/workflows/docker-image.yml)
+![Docker Image Version (tag latest semver)](https://img.shields.io/docker/v/ankitmehtame/http-forwarder-app/latest?arch=amd64&color=blue&label=%20)
+![Docker Image Version (tag latest semver)](https://img.shields.io/docker/v/ankitmehtame/http-forwarder-app/latest?arch=arm64&color=blue&label=%20)
+![Docker Image Version (tag latest semver)](https://img.shields.io/docker/v/ankitmehtame/http-forwarder-app/latest?arch=arm&color=blue&label=%20)
 
 # http-forwarder
 Forwards http traffic onto private network
