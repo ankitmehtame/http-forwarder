@@ -6,11 +6,9 @@ EXPOSE 443
 # copy csproj and restore as distinct layers
 COPY *.sln .
 COPY http-forwarder-app/*.csproj ./http-forwarder-app/
-RUN dotnet restore
-
-
-# copy everything else and build app
 COPY . ./
+RUN dotnet restore
+# copy everything else and build app
 RUN dotnet publish --no-restore -c Release -o out --self-contained false
 
 # Build runtime image
