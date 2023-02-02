@@ -51,11 +51,11 @@ jobs:
         # Docker tags based on the following events/attributes
         tags: |
           type=sha
-          type=semver,pattern={{version}},priority=900,prefix=,suffix=.${{ github.run_number }},enable={{is_default_branch}},value=${{ steps.nbgv.outputs.SimpleVersion }}
+          type=semver,pattern={{version}},priority=900,prefix=,suffix=.${{ github.run_number }},enable=${{ github.ref == 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
           type=semver,pattern={{version}},priority=900,prefix=rc-,suffix=.${{ github.run_number }},enable=${{ github.ref != 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
-          type=raw,value=latest,enable={{is_default_branch}}
-        # type=semver,pattern={{version}},enable={{is_default_branch}}
-        # type=semver,pattern={{major}}.{{minor}},enable={{is_default_branch}}
+          type=semver,pattern={{major.minor}},priority=850,prefix=,suffix=.${{ github.run_number }},enable=${{ github.ref == 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
+          type=semver,pattern={{major.minor}},priority=850,prefix=rc-,suffix=.${{ github.run_number }},enable=${{ github.ref != 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
+          type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
 
 
     - name: Log into registry
