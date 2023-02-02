@@ -15,6 +15,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
     elif [ "$TARGETPLATFORM" = "linux/arm/v7" ]; then \
         RID=linux-arm ; \
     fi \
+    && echo "dotnet restore -r $RID"\
     && dotnet restore -r $RID
 # copy everything else and build app
 COPY . ./
