@@ -19,7 +19,15 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
     && dotnet restore -r $RID
 # copy everything else and build app
 COPY . ./
-RUN dotnet publish --no-restore -r $RID -c Release -o out --self-contained false
+RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+        RID=linux-x64 ; \
+    elif [ "$TARGETPLATFORM" = "linux/arm/v8" ]; then \
+        RID=linux-arm64 ; \
+    elif [ "$TARGETPLATFORM" = "linux/arm/v7" ]; then \
+        RID=linux-arm ; \
+    fi \
+    && echo "dotnet publish --no-restore -r $RID -c Release -o out --self-contained false" \
+    && dotnet publish --no-restore -r $RID -c Release -o out --self-contained false
 
 # Build runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:6.0-bullseye-slim
