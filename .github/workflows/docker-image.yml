@@ -35,12 +35,6 @@ jobs:
     - name: Versioning
       run: echo ${{ steps.nbgv.outputs.SemVer2 }}
         
-    - name: Log into registry
-      uses: docker/login-action@v1
-      with:
-        username: ${{ secrets.DOCKER_USER }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-
     - name: Docker meta
       id: meta
       uses: docker/metadata-action@v3
@@ -51,14 +45,21 @@ jobs:
         # Docker tags based on the following events/attributes
         tags: |
           type=sha
-          type=raw,value=${{ steps.nbgv.outputs.SimpleVersion }}.${{ github.run_number }},priority=900,enable={{is_default_branch}}
-          type=raw,value=rc-${{ steps.nbgv.outputs.SimpleVersion }}.${{ github.run_number }},priority=900,enable=${{github.ref != 'refs/heads/master'}}
+          type=semver,value=${{ steps.nbgv.outputs.SimpleVersion }}.${{ github.run_number }},priority=900,enable={{is_default_branch}}
           type=raw,value=latest,enable={{is_default_branch}}
         # type=semver,pattern={{version}},enable={{is_default_branch}}
         # type=semver,pattern={{major}}.{{minor}},enable={{is_default_branch}}
-          
+        flavor: |
+          prefix=rc-,onlatest=false
+
+    - name: Log into registry
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKER_USER }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
     - name: Build and push
-      uses: docker/build-push-action@v2
+      uses: docker/build-push-action@v4
       with:
         context: .
         platforms: linux/amd64,linux/arm/v7,linux/arm/v8
