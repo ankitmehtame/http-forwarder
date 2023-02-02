@@ -1,4 +1,3 @@
-ARG TARGETARCH
 ARG RELEASE_ARCH="linux-x64"
 ARG RUNTIME_IMAGE="mcr.microsoft.com/dotnet/aspnet:3.1"
 
