@@ -68,7 +68,7 @@ jobs:
       uses: docker/build-push-action@v4
       with:
         context: .
-        platforms: linux/amd64,linux/arm/v7,linux/arm/v8
+        platforms: linux/amd64,linux/arm/v8,linux/arm/v7
         build-args: |
           RELEASE_ARCH=linux-x64 RELEASE_ARCH=linux-arm64 RELEASE_ARCH=linux-arm
           IMAGE_VARIANT= IMAGE_VARIANT=-buster-slim-arm64v8 IMAGE_VARIANT=-buster-slim-arm32v7
