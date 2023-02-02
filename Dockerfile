@@ -8,15 +8,14 @@ ARG TARGETPLATFORM
 # copy csproj and restore as distinct layers
 COPY *.sln .
 COPY http-forwarder-app/*.csproj ./http-forwarder-app/
-RUN echo "TARGETPLATFORM=$TARGETPLATFORM" && \ 
-    if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         RID=linux-x64 ; \
     elif [ "$TARGETPLATFORM" = "linux/arm/v8" ]; then \
         RID=linux-arm64 ; \
     elif [ "$TARGETPLATFORM" = "linux/arm/v7" ]; then \
         RID=linux-arm ; \
     fi \
-    && echo "dotnet restore -r $RID"\
+    && echo "dotnet restore -r $RID" \
     && dotnet restore -r $RID
 # copy everything else and build app
 COPY . ./
