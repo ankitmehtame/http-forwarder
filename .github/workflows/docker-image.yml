@@ -69,9 +69,6 @@ jobs:
       with:
         context: .
         platforms: linux/amd64,linux/arm/v8,linux/arm/v7
-        build-args: |
-          RELEASE_ARCH=linux-x64 RELEASE_ARCH=linux-arm64 RELEASE_ARCH=linux-arm
-          IMAGE_VARIANT= IMAGE_VARIANT=-buster-slim-arm64v8 IMAGE_VARIANT=-buster-slim-arm32v7
         file: Dockerfile #, Dockerfile.debian-arm64, Dockerfile.debian-arm32
 #         push: ${{ github.event_name != 'pull_request' }}
         push: false
