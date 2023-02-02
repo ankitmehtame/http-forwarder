@@ -51,8 +51,8 @@ jobs:
         # Docker tags based on the following events/attributes
         tags: |
           type=sha
-          type=semver,pattern=${{ steps.nbgv.outputs.SimpleVersion }}.${{ github.run_number }},priority=900,prefix=,enable={{is_default_branch}}
-          type=semver,pattern=${{ steps.nbgv.outputs.SimpleVersion }}.${{ github.run_number }},priority=900,prefix=rc-,enable=${{ github.ref != 'refs/heads/master' }}
+          type=semver,pattern=${{ steps.nbgv.outputs.SimpleVersion }},priority=900,prefix=,suffix=.${{ github.run_number }},enable={{is_default_branch}}
+          type=semver,pattern=${{ steps.nbgv.outputs.SimpleVersion }},priority=900,prefix=rc-,suffix=.${{ github.run_number }},enable=${{ github.ref != 'refs/heads/master' }}
           type=raw,value=latest,enable={{is_default_branch}}
         # type=semver,pattern={{version}},enable={{is_default_branch}}
         # type=semver,pattern={{major}}.{{minor}},enable={{is_default_branch}}
@@ -69,6 +69,9 @@ jobs:
       with:
         context: .
         platforms: linux/amd64,linux/arm/v7,linux/arm/v8
+        build-args: |
+          RELEASE_ARCH=linux-x64 RELEASE_ARCH=linux-arm64 RELEASE_ARCH=linux-arm
+          IMAGE_VARIANT= IMAGE_VARIANT=-buster-slim-arm64v8 IMAGE_VARIANT=-buster-slim-arm32v7
         file: Dockerfile #, Dockerfile.debian-arm64, Dockerfile.debian-arm32
 #         push: ${{ github.event_name != 'pull_request' }}
         push: false
