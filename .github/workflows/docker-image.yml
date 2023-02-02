@@ -51,8 +51,8 @@ jobs:
         # Docker tags based on the following events/attributes
         tags: |
           type=sha
-          type=semver,value=${{ steps.nbgv.outputs.SimpleVersion }}.${{ github.run_number }},enable={{is_default_branch}}
-          type=semver,value=${{ steps.nbgv.outputs.SimpleVersion }}.${{ github.run_number }}-rc,enable={{!is_default_branch}}
+          type=raw,value=${{ steps.nbgv.outputs.SimpleVersion }}.${{ github.run_number }},enable={{is_default_branch}}
+          type=raw,value=${{ steps.nbgv.outputs.SimpleVersion }}.${{ github.run_number }}-rc,enable={{!is_default_branch}}
           type=raw,value=latest,enable={{is_default_branch}}
         # type=semver,pattern={{version}},enable={{is_default_branch}}
         # type=semver,pattern={{major}}.{{minor}},enable={{is_default_branch}}
