@@ -3,16 +3,25 @@ WORKDIR /app
 EXPOSE 80
 EXPOSE 443
 
+ARG TARGETPLATFORM
+
 # copy csproj and restore as distinct layers
 COPY *.sln .
 COPY http-forwarder-app/*.csproj ./http-forwarder-app/
-COPY . ./
-RUN dotnet restore
+RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+        RID=linux-x64 ; \
+    elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+        RID=linux-arm64 ; \
+    elif [ "$TARGETPLATFORM" = "linux/arm/v7" ]; then \
+        RID=linux-arm ; \
+    fi \
+    && dotnet restore -r $RID
 # copy everything else and build app
-RUN dotnet publish --no-restore -c Release -o out --self-contained false
+COPY . ./
+RUN dotnet publish --no-restore -r $RID -c Release -o out --self-contained false
 
 # Build runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:6.0
+FROM mcr.microsoft.com/dotnet/aspnet:6.0-bullseye-slim
 WORKDIR /app
 COPY --from=build-env /app/out .
 ENTRYPOINT ["dotnet", "http-forwarder-app.dll"]
