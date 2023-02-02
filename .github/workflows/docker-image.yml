@@ -53,10 +53,11 @@ jobs:
           type=sha
           type=semver,pattern={{version}},priority=900,prefix=,suffix=.${{ github.run_number }},enable=${{ github.ref == 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
           type=semver,pattern={{version}},priority=900,prefix=rc-,suffix=.${{ github.run_number }},enable=${{ github.ref != 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
-          type=semver,pattern={{major.minor}},priority=850,prefix=,suffix=.${{ github.run_number }},enable=${{ github.ref == 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
-          type=semver,pattern={{major.minor}},priority=850,prefix=rc-,suffix=.${{ github.run_number }},enable=${{ github.ref != 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
+          type=semver,pattern={{major.minor}},priority=850,prefix=,suffix=,enable=${{ github.ref == 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
+          type=semver,pattern={{major.minor}},priority=850,prefix=rc-,suffix=,enable=${{ github.ref != 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
           type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
-
+        flavor: |
+          latest=false
 
     - name: Log into registry
       uses: docker/login-action@v1
