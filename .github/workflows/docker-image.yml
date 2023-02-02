@@ -52,7 +52,7 @@ jobs:
         tags: |
           type=sha
           type=raw,value=${{ steps.nbgv.outputs.SimpleVersion }}.${{ github.run_number }},priority=900,enable={{is_default_branch}}
-          type=raw,value=${{ steps.nbgv.outputs.SimpleVersion }}.${{ github.run_number }}-rc,priority=900,enable=${{github.ref != 'refs/heads/master'}}
+          type=raw,value=rc-${{ steps.nbgv.outputs.SimpleVersion }}.${{ github.run_number }},priority=900,enable=${{github.ref != 'refs/heads/master'}}
           type=raw,value=latest,enable={{is_default_branch}}
         # type=semver,pattern={{version}},enable={{is_default_branch}}
         # type=semver,pattern={{major}}.{{minor}},enable={{is_default_branch}}
