@@ -30,7 +30,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
     && dotnet publish --no-restore -r $RID -c Release -o out --self-contained false
 
 # Build runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:6.0-bullseye-slim-${BUILDARCH}${BUILDVARIANT}
+FROM mcr.microsoft.com/dotnet/aspnet:6.0-bullseye-slim-${TARGETARCH}${TARGETVARIANT}
 WORKDIR /app
 COPY --from=build-env /app/out .
 ENTRYPOINT ["dotnet", "http-forwarder-app.dll"]
