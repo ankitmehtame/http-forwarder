@@ -1,7 +1,8 @@
 ARG BITS=
 ARG BITSv8
 ARG BITSv7
-ARG CUR_BITS="BITS${TARGETVARIANT}"
+ARG CUR_BITS_VAR="BITS${TARGETVARIANT}"
+ARG CUR_BITS=${${CUR_BITS_VAR}}
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim-amd64 AS build-env
 WORKDIR /app
