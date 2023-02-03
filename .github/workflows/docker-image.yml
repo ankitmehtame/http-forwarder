@@ -70,6 +70,9 @@ jobs:
         context: .
         platforms: linux/amd64,linux/arm/v8,linux/arm/v7
         file: Dockerfile
+        build-args: |
+          BITSv8=64
+          BITSv7=32
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
