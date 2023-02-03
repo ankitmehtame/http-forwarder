@@ -2,7 +2,7 @@ ARG BITS=
 ARG BITSv8
 ARG BITSv7
 ARG CUR_BITS_VAR="BITS${TARGETVARIANT}"
-ARG CUR_BITS=${${CUR_BITS_VAR}}
+ARG CUR_BITS=${"${CUR_BITS_VAR}"}
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim-amd64 AS build-env
 WORKDIR /app
@@ -33,6 +33,13 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
     fi \
     && echo "dotnet publish --no-restore -r $RID -c Release -o out --self-contained false" \
     && dotnet publish --no-restore -r $RID -c Release -o out --self-contained false
+
+ARG BITS
+ARG BITSv8
+ARG BITSv7
+ARG CUR_BITS_VAR
+ARG CUR_BITS
+RUN echo "BITS=$BITS;BITSv8=$BITSv8;BITSv7=$BITSv7;CUR_BITS_VAR=$CUR_BITS_VAR;CUR_BITS=$CUR_BITS"
 
 # Build runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:6.0-bullseye-slim-${TARGETARCH}${CUR_BITS}${TARGETVARIANT}
