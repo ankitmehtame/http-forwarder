@@ -1,6 +1,7 @@
 ARG BITS=
 ARG BITSv8
 ARG BITSv7
+ARG CUR_BITS="BITS${TARGETVARIANT}"
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim-amd64 AS build-env
 WORKDIR /app
@@ -33,7 +34,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
     && dotnet publish --no-restore -r $RID -c Release -o out --self-contained false
 
 # Build runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:6.0-bullseye-slim-${TARGETARCH}${BITS${TARGETVARIANT}}${TARGETVARIANT}
+FROM mcr.microsoft.com/dotnet/aspnet:6.0-bullseye-slim-${TARGETARCH}${CUR_BITS}${TARGETVARIANT}
 WORKDIR /app
 COPY --from=build-env /app/out .
 ENTRYPOINT ["dotnet", "http-forwarder-app.dll"]
