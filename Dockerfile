@@ -10,10 +10,9 @@ COPY *.sln .
 COPY http-forwarder-app/*.csproj ./http-forwarder-app/
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         RID=linux-x64 ; \
-         
-    elif [ "$TARGETPLATFORM" = "linux/arm/v8" ]; then \
+    elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
         RID=linux-arm64 ; \
-    elif [ "$TARGETPLATFORM" = "linux/arm/v7" ]; then \
+    elif [ "$TARGETPLATFORM" = "linux/arm/v7" ] || [ "$TARGETPLATFORM" = "linux/arm/v8" ]; then \
         RID=linux-arm ; \
     fi \
     && echo "dotnet restore -r $RID" \
@@ -22,9 +21,9 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
 COPY . ./
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         RID=linux-x64 ; \
-    elif [ "$TARGETPLATFORM" = "linux/arm/v8" ]; then \
+    elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
         RID=linux-arm64 ; \
-    elif [ "$TARGETPLATFORM" = "linux/arm/v7" ]; then \
+    elif [ "$TARGETPLATFORM" = "linux/arm/v7" ] || [ "$TARGETPLATFORM" = "linux/arm/v8" ]; then \
         RID=linux-arm ; \
     fi \
     && echo "dotnet publish --no-restore -r $RID -c Release -o out --self-contained false" \
