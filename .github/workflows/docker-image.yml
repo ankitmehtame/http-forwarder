@@ -52,8 +52,8 @@ jobs:
         tags: |
           type=semver,pattern={{version}},priority=900,prefix=,suffix=.${{ github.run_number }},enable=${{ github.ref == 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
           type=semver,pattern={{version}},priority=900,prefix=rc-,suffix=.${{ github.run_number }},enable=${{ github.ref != 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
-          type=semver,pattern={{version}},priority=850,prefix=,suffix=,enable=${{ github.ref == 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
-          type=semver,pattern={{version}},priority=850,prefix=rc-,suffix=,enable=${{ github.ref != 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
+          type=semver,pattern={{major}}.{{minor}},priority=825,prefix=,suffix=,enable=${{ github.ref == 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
+          type=semver,pattern={{major}}.{{minor}},priority=825,prefix=rc-,suffix=,enable=${{ github.ref != 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
           type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
         flavor: |
           latest=false
@@ -63,6 +63,7 @@ jobs:
       with:
         username: ${{ secrets.DOCKER_USER }}
         password: ${{ secrets.DOCKER_PASSWORD }}
+      if: ${{ github.event_name != 'pull_request' }}
 
     - name: Build and push
       uses: docker/build-push-action@v4
@@ -70,6 +71,6 @@ jobs:
         context: .
         platforms: linux/amd64,linux/arm64,linux/arm/v8,linux/arm/v7
         file: Dockerfile
-        push: true
+        push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
