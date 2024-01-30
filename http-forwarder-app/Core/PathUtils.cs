@@ -11,7 +11,7 @@ namespace http_forwarder_app.Core
         public static string GetConfDirPath(this IConfiguration configuration)
         {
             var appRoot = configuration.GetAppRoot();
-            var pathsForConf = new [] { Path.Combine(appRoot, $"conf"), Path.Combine(appRoot, @".\..\conf") };
+            var pathsForConf = new[] { Path.Combine(appRoot, $"conf"), Path.Combine(appRoot, @".\..\conf") };
             var realPath = pathsForConf.FirstOrDefault(Directory.Exists) ?? pathsForConf.First();
             return realPath;
         }
@@ -24,14 +24,14 @@ namespace http_forwarder_app.Core
             return filePath;
         }
 
-        private static string GetFilePath(params string[] possiblePaths)
+        private static string? GetFilePath(params string[] possiblePaths)
         {
             return possiblePaths.FirstOrDefault(File.Exists);
         }
 
         public static string GetAppRoot(this IConfiguration configuration)
         {
-            var dir = Path.GetDirectoryName(new Uri(Assembly.GetEntryAssembly().EscapedCodeBase).LocalPath);
+            var dir = Path.GetDirectoryName(new Uri(Assembly.GetExecutingAssembly().Location).LocalPath)!;
             return dir;
         }
     }
