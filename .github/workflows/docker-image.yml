@@ -32,8 +32,13 @@ jobs:
         setAllVars: true
       id: nbgv
 
-    - name: Versioning
-      run: echo ${{ steps.nbgv.outputs.SemVer2 }}
+    - name: Versioning - Update projects
+      run: |
+        echo ${{ steps.nbgv.outputs.SemVer2 }}
+        echo "Installing tool dotnet-setversion"
+        dotnet tool install -g dotnet-setversion
+        echo "Setting version for projects"
+        setversion --recursive ${{ steps.nbgv.outputs.SemVer2 }}
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
