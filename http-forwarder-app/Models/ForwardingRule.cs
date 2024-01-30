@@ -3,19 +3,9 @@ using System.ComponentModel;
 
 namespace http_forwarder_app.Models
 {
-    public class ForwardingRule
+    public record class ForwardingRule(string Method, string Event, string TargetUrl, [DefaultValue(true)] bool HasContent = true, string? Content = null, bool IgnoreSslError = false, Dictionary<string, string>? Headers = default)
     {
-        public string Method { get; set; }
+        public Dictionary<string, string> Headers { get; init; } = Headers ?? [];
 
-        public string Event { get; set; }
-
-        public string TargetUrl { get; set; }
-
-        [DefaultValue(true)]
-        public bool HasContent { get; set; } = true;
-
-        public string Content { get; set; } = null;
-
-        public Dictionary<string, string> Headers { get; set; } = new Dictionary<string, string>();
     }
 }

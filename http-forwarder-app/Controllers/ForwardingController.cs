@@ -14,21 +14,11 @@ namespace http_forwarder_app.Controllers
     [Route("api/[controller]")]
     [Route("forward")]
     [Route("api/forward")]
-    public class ForwardingController : ControllerBase
+    public class ForwardingController(ILogger<ForwardingController> logger, ForwardingRulesReader rulesReader, AppState appState, IRestClient restClient) : ControllerBase
     {
-        private readonly ILogger<ForwardingController> _logger;
-
-        public ForwardingController(ILogger<ForwardingController> logger, ForwardingRulesReader rulesReader, AppState appState, IRestClient restClient)
-        {
-            _logger = logger;
-            RulesReader = rulesReader;
-            RestClient = restClient;
-            AppState = appState;
-        }
-
-        private AppState AppState { get; }
-        private ForwardingRulesReader RulesReader { get; }
-        private IRestClient RestClient { get; }
+        private AppState AppState { get; } = appState;
+        private ForwardingRulesReader RulesReader { get; } = rulesReader;
+        private IRestClient RestClient { get; } = restClient;
 
         [HttpGet]
         public object Get()
@@ -41,19 +31,19 @@ namespace http_forwarder_app.Controllers
         public async Task Get(string eventName)
         {
             const string method = "GET";
-            _logger.LogDebug($"{method} called with event {eventName}");
-            _logger.LogDebug($"Found {AppState.Rules.Length} rules");
+            logger.LogDebug($"{method} called with event {eventName}");
+            logger.LogDebug($"Found {AppState.Rules.Length} rules");
             if (AppState.Rules.Length > 0)
             {
-                _logger.LogDebug($"First rule - Event: {AppState.Rules[0].Event}, Method: {AppState.Rules[0].Method}, TargetUrl: {AppState.Rules[0].TargetUrl}");
+                logger.LogDebug($"First rule - Event: {AppState.Rules[0].Event}, Method: {AppState.Rules[0].Method}, TargetUrl: {AppState.Rules[0].TargetUrl}");
             }
             var fwdRule = RulesReader.Find(method, eventName);
             if (fwdRule == null)
             {
-                _logger.LogWarning($"{method} for event {eventName} does not match any rules");
+                logger.LogWarning($"{method} for event {eventName} does not match any rules");
                 return;
             }
-            var callResp = await RestClient.MakeGetCall(eventName, fwdRule.TargetUrl, fwdRule.Headers);
+            var callResp = await RestClient.MakeGetCall(eventName, fwdRule.TargetUrl, fwdRule.Headers, fwdRule.IgnoreSslError);
             await HttpContext.CopyHttpResponse(callResp);
         }
 
@@ -69,14 +59,14 @@ namespace http_forwarder_app.Controllers
             var fwdRule = RulesReader.Find(method, eventName);
             if (fwdRule == null)
             {
-                _logger.LogWarning($"{method} for event {eventName} does not match any rules");
+                logger.LogWarning($"{method} for event {eventName} does not match any rules");
                 return;
             }
             var body = await GetBodyFromHttpRequest(HttpContext.Request);
-            _logger.LogDebug($"{method} called with event {eventName} and body {body}");
+            logger.LogDebug($"{method} called with event {eventName} and body {body}");
             if (string.IsNullOrEmpty(body) && fwdRule.HasContent)
             {
-                _logger.LogWarning($"Body can't be null");
+                logger.LogWarning($"Body can't be null");
                 Response.StatusCode = StatusCodes.Status400BadRequest;
                 return;
             }
@@ -84,7 +74,7 @@ namespace http_forwarder_app.Controllers
             {
                 body = fwdRule.Content;
             }
-            var callResp = await RestClient.MakePostCall(eventName, fwdRule.TargetUrl, body, fwdRule.Headers);
+            var callResp = await RestClient.MakePostCall(eventName, fwdRule.TargetUrl, body, fwdRule.Headers, fwdRule.IgnoreSslError);
             await HttpContext.CopyHttpResponse(callResp);
         }
 
@@ -99,14 +89,14 @@ namespace http_forwarder_app.Controllers
             var fwdRule = RulesReader.Find(method, eventName);
             if (fwdRule == null)
             {
-                _logger.LogWarning($"{method} for event {eventName} does not match any rules");
+                logger.LogWarning($"{method} for event {eventName} does not match any rules");
                 return;
             }
             var body = await GetBodyFromHttpRequest(HttpContext.Request);
-            _logger.LogDebug($"{method} called with event {eventName} and body {body}");
+            logger.LogDebug($"{method} called with event {eventName} and body {body}");
             if (string.IsNullOrEmpty(body) && fwdRule.HasContent)
             {
-                _logger.LogWarning($"Body can't be null");
+                logger.LogWarning($"Body can't be null");
                 Response.StatusCode = StatusCodes.Status400BadRequest;
                 return;
             }
@@ -114,7 +104,7 @@ namespace http_forwarder_app.Controllers
             {
                 body = fwdRule.Content;
             }
-            var callResp = await RestClient.MakePutCall(eventName, fwdRule.TargetUrl, body, fwdRule.Headers);
+            var callResp = await RestClient.MakePutCall(eventName, fwdRule.TargetUrl, body, fwdRule.Headers, fwdRule.IgnoreSslError);
             await HttpContext.CopyHttpResponse(callResp);
         }
 
@@ -123,24 +113,24 @@ namespace http_forwarder_app.Controllers
         public async Task Delete(string eventName)
         {
             const string method = "DELETE";
-            _logger.LogDebug($"{method} called with event {eventName}");
+            logger.LogDebug($"{method} called with event {eventName}");
             var fwdRule = RulesReader.Find(method, eventName);
             if (fwdRule == null)
             {
-                _logger.LogWarning($"{method} for event {eventName} does not match any rules");
+                logger.LogWarning($"{method} for event {eventName} does not match any rules");
                 return;
             }
-            var callResp = await RestClient.MakeDeleteCall(eventName, fwdRule.TargetUrl, fwdRule.Headers);
+            var callResp = await RestClient.MakeDeleteCall(eventName, fwdRule.TargetUrl, fwdRule.Headers, fwdRule.IgnoreSslError);
             await HttpContext.CopyHttpResponse(callResp);
         }
 
-        private Task<string> GetBodyFromHttpRequest(HttpRequest request)
+        private async Task<string?> GetBodyFromHttpRequest(HttpRequest request)
         {
             var bodyStream = request?.Body;
             if (bodyStream != null)
             {
                 TextReader tr = new StreamReader(bodyStream);
-                return tr.ReadToEndAsync();
+                return await tr.ReadToEndAsync();
             }
             return null;
         }

@@ -9,7 +9,7 @@ namespace http_forwarder_app.Core
             return new JsonSerializerOptions { PropertyNameCaseInsensitive = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = indentedWrite };
         }
 
-        public static T Deserialize<T>(string json)
+        public static T? Deserialize<T>(string json)
         {
             return JsonSerializer.Deserialize<T>(json, CreateJsonSerializerOptions());
         }

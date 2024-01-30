@@ -6,9 +6,9 @@ namespace http_forwarder_app.Core
 {
     public interface IRestClient
     {
-        Task<HttpResponseMessage> MakeGetCall(string eventName, string targetUrl, IDictionary<string, string> headers);
-        Task<HttpResponseMessage> MakePostCall(string eventName, string targetUrl, string content, IDictionary<string, string> headers);
-        Task<HttpResponseMessage> MakePutCall(string eventName, string targetUrl, string content, IDictionary<string, string> headers);
-        Task<HttpResponseMessage> MakeDeleteCall(string eventName, string targetUrl, IDictionary<string, string> headers);
+        Task<HttpResponseMessage> MakeGetCall(string eventName, string targetUrl, IDictionary<string, string> headers, bool ignoreSslError);
+        Task<HttpResponseMessage> MakePostCall(string eventName, string targetUrl, string? content, IDictionary<string, string> headers, bool ignoreSslError);
+        Task<HttpResponseMessage> MakePutCall(string eventName, string targetUrl, string? content, IDictionary<string, string> headers, bool ignoreSslError);
+        Task<HttpResponseMessage> MakeDeleteCall(string eventName, string targetUrl, IDictionary<string, string> headers, bool ignoreSslError);
     }
 }
