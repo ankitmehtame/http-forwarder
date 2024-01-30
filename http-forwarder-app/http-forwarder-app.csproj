@@ -12,6 +12,6 @@
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="*"/>
     <PackageReference Include="Serilog.Extensions.Logging.File" Version="*"/>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="*"/>
-    <PackageReference Include="Nerdbank.GitVersioning" Version="*"/>
+    <PackageReference Include="Semver" Version="*"/>
   </ItemGroup>
 </Project>
