@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using http_forwarder_app.Core;
@@ -24,8 +23,8 @@ namespace http_forwarder_app
             Configuration = configuration;
         }
 
-        public static readonly string InfoVersion = Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? throw new Exception("Assembly Info Version not found");
-        public static readonly string AssemblyVersion = Assembly.GetEntryAssembly()?.GetName()?.Version?.ToString(3) ?? throw new Exception("Assembly Name not found");
+        public static readonly string InfoVersion = VersionUtils.InfoVersion;
+        public static readonly string AssemblyVersion = VersionUtils.AssemblyVersion;
 
         public IConfiguration Configuration { get; }
 
