@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:6.0 AS build-env
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0 AS build-env
 WORKDIR /app
 EXPOSE 80
 EXPOSE 443
@@ -30,7 +30,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
     && dotnet publish --no-restore -r $RID -c Release -o out --self-contained false
 
 # Build runtime image
-FROM --platform=$TARGETPLATFORM mcr.microsoft.com/dotnet/aspnet:6.0
+FROM --platform=$TARGETPLATFORM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 COPY --from=build-env /app/out .
 ENTRYPOINT ["dotnet", "http-forwarder-app.dll"]
