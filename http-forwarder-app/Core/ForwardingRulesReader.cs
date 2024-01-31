@@ -44,7 +44,7 @@ namespace http_forwarder_app.Core
                 _logger.LogInformation("Rules file found at {rulesFile}", rulesFile);
             }
             var rules = Read();
-            AppState.Rules = rules?.ToArray() ?? System.Array.Empty<ForwardingRule>();
+            AppState.Rules = rules?.ToArray() ?? [];
         }
 
         public IEnumerable<ForwardingRule> Read()
@@ -53,7 +53,7 @@ namespace http_forwarder_app.Core
             _logger.LogInformation("Reading rules file from {rulesJsonFilePath}", rulesJsonFilePath);
             var rulesJson = File.ReadAllText(rulesJsonFilePath);
             var rules = JsonUtils.Deserialize<ForwardingRule[]>(rulesJson) ?? [];
-            _logger.LogInformation("Read {rulesLength} forwarding rules - {rulesJson}", rules.Length, JsonUtils.Serialize(rules, false));
+            _logger.LogInformation("Read {rulesLength} forwarding rules - {rulesJson}", rules.Length, rules);
             return rules;
         }
 
