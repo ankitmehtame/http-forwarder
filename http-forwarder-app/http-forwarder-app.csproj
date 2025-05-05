@@ -1,17 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <RuntimeIdentifiers>linux-x64;linux-arm64</RuntimeIdentifiers>
     <RootNamespace>http_forwarder_app</RootNamespace>
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <None Update="conf\rules.json" CopyToOutputDirectory="PreserveNewest"/>
+    <None Update="conf\rules.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="*"/>
-    <PackageReference Include="Serilog.Extensions.Logging.File" Version="*"/>
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="*"/>
-    <PackageReference Include="Semver" Version="*"/>
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="*" />
+    <PackageReference Include="Serilog.Extensions.Logging.File" Version="*" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="*" />
+    <PackageReference Include="Semver" Version="*" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../http-forarder-utils/http-forarder-utils.csproj" />
+    <ProjectReference Include="../http-forwarder-models/http-forwarder-models.csproj" />
   </ItemGroup>
 </Project>

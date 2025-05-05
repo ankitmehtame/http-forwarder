@@ -1,36 +1,21 @@
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0 AS build-env
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /app
 EXPOSE 80
-EXPOSE 443
 
-ARG TARGETPLATFORM
-
-# copy csproj and restore as distinct layers
-COPY *.sln .
+# copy sln, csproj and restore
+COPY *.sln ./
 COPY http-forwarder-app/*.csproj ./http-forwarder-app/
-RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
-        RID=linux-x64 ; \
-    elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-        RID=linux-arm64 ; \
-    elif [ "$TARGETPLATFORM" = "linux/arm/v7" ] || [ "$TARGETPLATFORM" = "linux/arm/v8" ]; then \
-        RID=linux-arm ; \
-    fi \
-    && echo "dotnet restore -r $RID" \
-    && dotnet restore -r $RID
-# copy everything else and build app
-COPY . ./
-RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
-        RID=linux-x64 ; \
-    elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-        RID=linux-arm64 ; \
-    elif [ "$TARGETPLATFORM" = "linux/arm/v7" ] || [ "$TARGETPLATFORM" = "linux/arm/v8" ]; then \
-        RID=linux-arm ; \
-    fi \
-    && echo "dotnet publish --no-restore -r $RID -c Release -o out --self-contained false" \
-    && dotnet publish --no-restore -r $RID -c Release -o out --self-contained false
+COPY http-forwarder-models/*.csproj ./http-forwarder-models/
+COPY http-forwarder-utils/*.csproj ./http-forwarder-utils/
+COPY http-forwarder-unit-tests/*.csproj ./http-forwarder-unit-tests/
+COPY http-forwarder-app-function/*.csproj ./http-forwarder-unit-tests/
+
+RUN dotnet build http-forwarder.sln -c Release
+
+RUN dotnet publish http-forwarder-app/http-forwarder-app.csproj -c Release -o out --no-build
 
 # Build runtime image
-FROM --platform=$TARGETPLATFORM mcr.microsoft.com/dotnet/aspnet:8.0
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
-COPY --from=build-env /app/out .
+COPY --from=build /app/out ./
 ENTRYPOINT ["dotnet", "http-forwarder-app.dll"]
