@@ -15,7 +15,7 @@
     <PackageReference Include="Semver" Version="*" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../http-forarder-utils/http-forarder-utils.csproj" />
+    <ProjectReference Include="../http-forwarder-utils/http-forwarder-utils.csproj" />
     <ProjectReference Include="../http-forwarder-models/http-forwarder-models.csproj" />
   </ItemGroup>
 </Project>

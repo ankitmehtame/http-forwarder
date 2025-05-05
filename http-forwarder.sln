@@ -9,7 +9,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "http-forwarder-app-function
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "http-forwarder-models", "http-forwarder-models\http-forwarder-models.csproj", "{48460667-461B-4161-9454-337D9CAE4473}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "http-forarder-utils", "http-forarder-utils\http-forarder-utils.csproj", "{5D30A102-39F9-4BE6-B5F2-0645A2F8DDBC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "http-forarder-utils", "http-forwarder-utils\http-forwarder-utils.csproj", "{5D30A102-39F9-4BE6-B5F2-0645A2F8DDBC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "http-forwarder-unit-tests", "http-forwarder-unit-tests\http-forwarder-unit-tests.csproj", "{8AE07F40-EA93-4224-A4B8-99288EA658DE}"
 EndProject
