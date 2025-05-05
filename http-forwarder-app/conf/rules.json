@@ -13,5 +13,20 @@
             "Content-Type": "application/json"
         },
         "hasContent": false
+    },
+    {
+        "method": "GET",
+        "event": "ping-test",
+        "targetUrl": "/api/ping"
+    },
+    {
+        "method": "POST",
+        "event": "ping-test",
+        "targetUrl": "/api/ping",
+        "content": "{\"message\": \"message-567\"}",
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "hasContent": false
     }
 ]

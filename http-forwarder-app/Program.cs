@@ -79,3 +79,5 @@ static void AddEnvironmentVariables(IList<string> existingArgsList, IDictionary<
         existingArgsList.Add(pair.Value);
     }
 }
+
+public partial class Program { }

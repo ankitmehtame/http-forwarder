@@ -43,7 +43,8 @@ namespace http_forwarder_app.Controllers
                 logger.LogWarning($"{method} for event {eventName} does not match any rules");
                 return;
             }
-            var callResp = await RestClient.MakeGetCall(eventName, fwdRule.TargetUrl, fwdRule.Headers, fwdRule.IgnoreSslError);
+            var targetUrl = GetValidTargetUrl(fwdRule, Request);
+            var callResp = await RestClient.MakeGetCall(eventName, targetUrl, fwdRule.Headers, fwdRule.IgnoreSslError);
             await HttpContext.CopyHttpResponse(callResp);
         }
 
@@ -74,7 +75,8 @@ namespace http_forwarder_app.Controllers
             {
                 body = fwdRule.Content;
             }
-            var callResp = await RestClient.MakePostCall(eventName, fwdRule.TargetUrl, body, fwdRule.Headers, fwdRule.IgnoreSslError);
+            var targetUrl = GetValidTargetUrl(fwdRule, Request);
+            var callResp = await RestClient.MakePostCall(eventName, targetUrl, body, fwdRule.Headers, fwdRule.IgnoreSslError);
             await HttpContext.CopyHttpResponse(callResp);
         }
 
@@ -104,7 +106,8 @@ namespace http_forwarder_app.Controllers
             {
                 body = fwdRule.Content;
             }
-            var callResp = await RestClient.MakePutCall(eventName, fwdRule.TargetUrl, body, fwdRule.Headers, fwdRule.IgnoreSslError);
+            var targetUrl = GetValidTargetUrl(fwdRule, Request);
+            var callResp = await RestClient.MakePutCall(eventName, targetUrl, body, fwdRule.Headers, fwdRule.IgnoreSslError);
             await HttpContext.CopyHttpResponse(callResp);
         }
 
@@ -120,11 +123,12 @@ namespace http_forwarder_app.Controllers
                 logger.LogWarning($"{method} for event {eventName} does not match any rules");
                 return;
             }
-            var callResp = await RestClient.MakeDeleteCall(eventName, fwdRule.TargetUrl, fwdRule.Headers, fwdRule.IgnoreSslError);
+            var targetUrl = GetValidTargetUrl(fwdRule, Request);
+            var callResp = await RestClient.MakeDeleteCall(eventName, targetUrl, fwdRule.Headers, fwdRule.IgnoreSslError);
             await HttpContext.CopyHttpResponse(callResp);
         }
 
-        private async Task<string?> GetBodyFromHttpRequest(HttpRequest request)
+        private static async Task<string?> GetBodyFromHttpRequest(HttpRequest request)
         {
             var bodyStream = request?.Body;
             if (bodyStream != null)
@@ -133,6 +137,15 @@ namespace http_forwarder_app.Controllers
                 return await tr.ReadToEndAsync();
             }
             return null;
+        }
+
+        private static string GetValidTargetUrl(ForwardingRule rule, HttpRequest request)
+        {
+            if (rule.TargetUrl != null && !rule.TargetUrl.StartsWith("http", System.StringComparison.Ordinal))
+            {
+                return $"{request.Scheme}://{request.Host}{rule.TargetUrl}";
+            }
+            return rule.TargetUrl ?? string.Empty;
         }
     }
 }

@@ -12,6 +12,8 @@ COPY http-forwarder-utils/*.csproj ./http-forwarder-utils/
 COPY http-forwarder-utils/. ./http-forwarder-utils/
 COPY http-forwarder-unit-tests/*.csproj ./http-forwarder-unit-tests/
 COPY http-forwarder-unit-tests/. ./http-forwarder-unit-tests/
+COPY http-forwarder-acceptance-tests/*.csproj ./http-forwarder-acceptance-tests/
+COPY http-forwarder-acceptance-tests/. ./http-forwarder-acceptance-tests/
 COPY http-forwarder-app-function/*.csproj ./http-forwarder-app-function/
 COPY http-forwarder-app-function/. ./http-forwarder-app-function/
 

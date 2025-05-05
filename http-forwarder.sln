@@ -9,9 +9,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "http-forwarder-app-function
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "http-forwarder-models", "http-forwarder-models\http-forwarder-models.csproj", "{48460667-461B-4161-9454-337D9CAE4473}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "http-forarder-utils", "http-forwarder-utils\http-forwarder-utils.csproj", "{5D30A102-39F9-4BE6-B5F2-0645A2F8DDBC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "http-forwarder-utils", "http-forwarder-utils\http-forwarder-utils.csproj", "{5D30A102-39F9-4BE6-B5F2-0645A2F8DDBC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "http-forwarder-unit-tests", "http-forwarder-unit-tests\http-forwarder-unit-tests.csproj", "{8AE07F40-EA93-4224-A4B8-99288EA658DE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "http-forwarder-acceptance-tests", "http-forwarder-acceptance-tests\http-forwarder-acceptance-tests.csproj", "{0DE48530-B263-4CBA-9D13-DD4D14E5EE92}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -83,6 +85,18 @@ Global
 		{8AE07F40-EA93-4224-A4B8-99288EA658DE}.Release|x64.Build.0 = Release|Any CPU
 		{8AE07F40-EA93-4224-A4B8-99288EA658DE}.Release|x86.ActiveCfg = Release|Any CPU
 		{8AE07F40-EA93-4224-A4B8-99288EA658DE}.Release|x86.Build.0 = Release|Any CPU
+		{0DE48530-B263-4CBA-9D13-DD4D14E5EE92}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0DE48530-B263-4CBA-9D13-DD4D14E5EE92}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0DE48530-B263-4CBA-9D13-DD4D14E5EE92}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0DE48530-B263-4CBA-9D13-DD4D14E5EE92}.Debug|x64.Build.0 = Debug|Any CPU
+		{0DE48530-B263-4CBA-9D13-DD4D14E5EE92}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0DE48530-B263-4CBA-9D13-DD4D14E5EE92}.Debug|x86.Build.0 = Debug|Any CPU
+		{0DE48530-B263-4CBA-9D13-DD4D14E5EE92}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0DE48530-B263-4CBA-9D13-DD4D14E5EE92}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0DE48530-B263-4CBA-9D13-DD4D14E5EE92}.Release|x64.ActiveCfg = Release|Any CPU
+		{0DE48530-B263-4CBA-9D13-DD4D14E5EE92}.Release|x64.Build.0 = Release|Any CPU
+		{0DE48530-B263-4CBA-9D13-DD4D14E5EE92}.Release|x86.ActiveCfg = Release|Any CPU
+		{0DE48530-B263-4CBA-9D13-DD4D14E5EE92}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
