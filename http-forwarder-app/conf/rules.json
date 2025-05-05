@@ -2,11 +2,31 @@
     {
         "method": "GET",
         "event": "TEST",
-        "targetUrl": "http://dummy.restapiexample.com/api/v1/employees"
+        "targetUrl": "https://httpbin.org/get?name=test&value=123"
     },
     {
         "method": "POST",
         "event": "TEST",
-        "targetUrl": "http://dummy.restapiexample.com/api/v1/create"
+        "targetUrl": "https://httpbin.org/post",
+        "content": "{\"name\": \"Test Person\", \"age\": 99}",
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "hasContent": false
+    },
+    {
+        "method": "GET",
+        "event": "ping-test",
+        "targetUrl": "/api/ping"
+    },
+    {
+        "method": "POST",
+        "event": "ping-test",
+        "targetUrl": "/api/ping",
+        "content": "{\"message\": \"message-567\"}",
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "hasContent": false
     }
 ]

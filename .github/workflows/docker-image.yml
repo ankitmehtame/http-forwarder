@@ -12,9 +12,8 @@ on:
 
 env:
   IMAGE_NAME: http-forwarder-app
-  ARCH_AMD64: amd64
-  ARCH_ARM64: arm64v8
-  ARCH_ARM32: arm32v7
+  GITHUB_REGISTRY: ghcr.io
+  DOTNET_SDK_VERSION: 9.0
 
 jobs:
 
@@ -23,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0 # avoid shallow clone so nbgv can do its work.
 
@@ -31,6 +30,12 @@ jobs:
       with:
         setAllVars: true
       id: nbgv
+
+    - name: Set up dotnet SDK
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+        
 
     - name: Versioning - Update projects
       run: |
@@ -40,19 +45,28 @@ jobs:
         echo "Setting version for projects"
         setversion --recursive ${{ steps.nbgv.outputs.SemVer2 }}
 
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build Project
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Run Tests
+      run: dotnet test --configuration Release --no-build --verbosity normal
+
     - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
+      uses: docker/setup-qemu-action@v3
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
+      uses: docker/setup-buildx-action@v3
         
     - name: Docker meta
       id: meta
-      uses: docker/metadata-action@v3
+      uses: docker/metadata-action@v5
       with:
         # list of Docker images to use as base name for tags
         images: |
-          ${{ secrets.DOCKER_USER }}/${{ env.IMAGE_NAME }}
+          ${{ env.GITHUB_REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
         # Docker tags based on the following events/attributes
         tags: |
           type=semver,pattern={{version}},priority=900,prefix=,suffix=.${{ github.run_number }},enable=${{ github.ref == 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
@@ -63,19 +77,22 @@ jobs:
         flavor: |
           latest=false
 
-    - name: Log into registry
-      uses: docker/login-action@v1
+    - name: Log into GHCR
+      uses: docker/login-action@v3
       with:
-        username: ${{ secrets.DOCKER_USER }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+        registry: ${{ env.GITHUB_REGISTRY }}
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
       if: ${{ github.event_name != 'pull_request' }}
 
     - name: Build and push
-      uses: docker/build-push-action@v4
+      uses: docker/build-push-action@v5
       with:
         context: .
-        platforms: linux/amd64,linux/arm64,linux/arm/v8,linux/arm/v7
+        platforms: linux/amd64,linux/arm64
         file: Dockerfile
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+        registry: ${{ env.GITHUB_REGISTRY }}
+        repository: ${{ github.repository_owner }}/${{ env.IMAGE_NAME }}

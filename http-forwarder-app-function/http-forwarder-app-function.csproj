@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>http_forwarder_app_function</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Google.Cloud.Functions.Framework" Version="*"/>
+    <PackageReference Include="Google.Cloud.PubSub.V1" Version="*"/>
+    <PackageReference Include="Google.Cloud.Functions.Hosting" Version="*" />
+    <None Include="appsettings*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../http-forwarder-utils/http-forwarder-utils.csproj"/>
+    <ProjectReference Include="../http-forwarder-models/http-forwarder-models.csproj"/>
+  </ItemGroup>
+</Project>
