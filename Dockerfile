@@ -8,7 +8,7 @@ COPY http-forwarder-app/*.csproj ./http-forwarder-app/
 COPY http-forwarder-models/*.csproj ./http-forwarder-models/
 COPY http-forwarder-utils/*.csproj ./http-forwarder-utils/
 COPY http-forwarder-unit-tests/*.csproj ./http-forwarder-unit-tests/
-COPY http-forwarder-app-function/*.csproj ./http-forwarder-app-function/
+# COPY http-forwarder-app-function/*.csproj ./http-forwarder-app-function/
 
 RUN dotnet build http-forwarder.sln -c Release
 
