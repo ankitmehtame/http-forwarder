@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+﻿using System.Text.RegularExpressions;
 using Google.Cloud.Functions.Framework;
 using Google.Cloud.PubSub.V1;
 using http_forwarder_app.Core;
@@ -13,111 +13,86 @@ public class Function : IHttpFunction
 {
     private readonly ILogger<Function> _logger;
     private readonly PublisherClient _publisher;
-    private readonly string _projectId;
-    private readonly string _topicId;
 
-    // Define environment variable names
-    private const string ProjectIdEnvVar = "GOOGLE_CLOUD_PROJECT_ID";
-    private const string TopicIdEnvVar = "PUBSUB_TOPIC_ID";
+    private readonly HashSet<string> _allowedEvents;
 
-    public Function(ILogger<Function> logger, IConfiguration configuration)
+    private const string AllowedEventsEnvVar = "ALLOWED_EVENTS";
+
+    public Function(ILogger<Function> logger, IConfiguration configuration, PublisherClient publisherClient)
     {
         _logger = logger;
 
-        // Read Project ID and Topic ID from environment variables
-        _projectId = configuration.GetValue<string?>(ProjectIdEnvVar) ?? string.Empty;
-        _topicId = configuration.GetValue<string>(TopicIdEnvVar) ?? string.Empty;
+        var allowedEvents = configuration.GetValue<string?>(AllowedEventsEnvVar) ?? string.Empty;
 
-        if (string.IsNullOrEmpty(_projectId))
+        if (string.IsNullOrEmpty(allowedEvents))
         {
-            _logger.LogError($"Environment variable '{ProjectIdEnvVar}' is not set.");
-            throw new InvalidOperationException($"Environment variable '{ProjectIdEnvVar}' is not set.");
+            _logger.LogError("Environment variable '{AllowedEventNamesEnvVar}' is not set.", AllowedEventsEnvVar);
+            throw new InvalidOperationException($"Environment variable '{AllowedEventsEnvVar}' is not set.");
         }
-        if (string.IsNullOrEmpty(_topicId))
-        {
-            _logger.LogError($"Environment variable '{TopicIdEnvVar}' is not set.");
-            throw new InvalidOperationException($"Environment variable '{TopicIdEnvVar}' is not set.");
-        }
+        _allowedEvents = allowedEvents
+                            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        try
-        {
-            TopicName topicName = TopicName.FromProjectTopic(_projectId, _topicId);
-            _publisher = PublisherClient.Create(topicName);
-            _logger.LogInformation($"Pub/Sub PublisherClient created for topic: {topicName.ToString()}");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Failed to create Pub/Sub PublisherClient: {ex.Message}");
-            throw;
-        }
+        _publisher = publisherClient;
     }
 
     public async Task HandleAsync(HttpContext context)
     {
-        _logger.LogInformation("Received HTTP {requestMethod} request", context.Request.Method);
+        var requestMethod = context.Request.Method;
+        var requestPath = context.Request.Path.Value;
+        _logger.LogInformation("Received HTTP {requestMethod} request at {requestPath}", requestMethod, requestPath);
 
         // Ensure it's a POST/PUT request
-        if (context.Request.Method != "POST" && context.Request.Method != "PUT")
+        if (requestMethod != "POST" && requestMethod != "PUT")
         {
             context.Response.StatusCode = StatusCodes.Status405MethodNotAllowed;
             await context.Response.WriteAsync("Only POST/PUT requests are allowed.");
             return;
         }
 
-        string requestBody;
+        var eventName = GetEventName(requestPath);
+        _logger.LogInformation("Event is {eventName}", eventName);
+        if (string.IsNullOrEmpty(eventName))
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await context.Response.WriteAsync($"Error processing event name");
+            return;
+        }
+        if (!(_allowedEvents.Contains("*") ||
+            _allowedEvents.Contains(eventName) ||
+            _allowedEvents.Any(allowedEventName => Regex.IsMatch(eventName, allowedEventName, RegexOptions.IgnoreCase))))
+        {
+            context.Response.StatusCode = StatusCodes.Status406NotAcceptable;
+            await context.Response.WriteAsync($"Not allowed event {eventName}");
+            return;
+        }
+
+        string requestBody = null!;
         using (var reader = new StreamReader(context.Request.Body, System.Text.Encoding.UTF8))
         {
-            requestBody = await reader.ReadToEndAsync();
+            requestBody = ((await reader.ReadToEndAsync()) ?? string.Empty).Trim();
         }
 
-        if (string.IsNullOrEmpty(requestBody))
-        {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            await context.Response.WriteAsync("Request body is empty.");
-            return;
-        }
-
-        ForwardingRule? rule;
-        try
-        {
-            rule = JsonUtils.Deserialize<ForwardingRule>(requestBody);
-            if (rule == null)
-            {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsync($"Invalid JSON format for {nameof(ForwardingRule)} object");
-                return;
-            }
-            _logger.LogInformation("Received rule: {rule}", rule);
-        }
-        catch (JsonException jsonEx)
-        {
-            _logger.LogError("JSON deserialization error: {errorMessage}", jsonEx.Message);
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            await context.Response.WriteAsync($"Invalid JSON format: {jsonEx.Message}");
-            return;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError("An error occurred during deserialization: {errorMessage}", ex.Message);
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            await context.Response.WriteAsync("An internal error occurred during processing.");
-            return;
-        }
+        ForwardingRequest fwdRequest = new(Method: requestMethod, Event: eventName, Content: requestBody);
 
         try
         {
-            string messageData = JsonUtils.Serialize(rule, false);
+            string messageData = JsonUtils.Serialize(fwdRequest, false);
             var messageBytes = System.Text.Encoding.UTF8.GetBytes(messageData);
 
-            string messageId = await _publisher.PublishAsync(new PubsubMessage
+            var pubsubMessage = new PubsubMessage
             {
                 Data = Google.Protobuf.ByteString.CopyFrom(messageBytes),
-            });
+            };
+            pubsubMessage.Attributes.Add("EVENT", eventName);
+            pubsubMessage.Attributes.Add("METHOD", requestMethod);
+
+            string messageId = await _publisher.PublishAsync(pubsubMessage);
 
             _logger.LogInformation("Message published to Pub/Sub with ID: {messageId}", messageId);
 
             context.Response.StatusCode = StatusCodes.Status200OK;
-            await context.Response.WriteAsync($"Message published successfully. Message ID: {messageId}");
+            await context.Response.WriteAsync($"Message published successfully. Message ID: {messageId} for event {eventName} & method {requestMethod}");
         }
         catch (Exception ex)
         {
@@ -125,5 +100,20 @@ public class Function : IHttpFunction
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             await context.Response.WriteAsync($"Failed to publish message: {ex.Message}");
         }
+    }
+
+    private static string GetEventName(string? requestPath)
+    {
+        if (string.IsNullOrEmpty(requestPath)) return string.Empty;
+        // Split the path by '/'
+        // The last segment after the leading '/' will be the eventName
+        var pathSegments = requestPath.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (pathSegments.Length > 0)
+        {
+            var eventName = pathSegments.Last();
+            return eventName;
+        }
+        return string.Empty;
     }
 }
