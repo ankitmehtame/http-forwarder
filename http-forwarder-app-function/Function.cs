@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using Google.Cloud.Functions.Framework;
 using Google.Cloud.PubSub.V1;
 using http_forwarder_app.Core;

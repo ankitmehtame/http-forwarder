@@ -1,4 +1,4 @@
-﻿using http_forwarder_app.Core;
+using http_forwarder_app.Core;
 using http_forwarder_app.Models;
 using Shouldly;
 
