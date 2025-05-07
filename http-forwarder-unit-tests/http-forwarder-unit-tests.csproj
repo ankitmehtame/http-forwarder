@@ -7,17 +7,20 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="coverlet.collector" Version="6.0.2"/>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0"/>
-    <PackageReference Include="xunit" Version="2.9.2"/>
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2"/>
-    <PackageReference Include="Shouldly" Version="*"/>
+    <PackageReference Include="coverlet.collector" Version="6.0.2" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="Shouldly" Version="*" />
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="*" />
+    <PackageReference Include="Moq" Version="*" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../http-forwarder-utils/http-forwarder-utils.csproj"/>
-    <ProjectReference Include="../http-forwarder-models/http-forwarder-models.csproj"/>
+    <ProjectReference Include="../http-forwarder-app-function/http-forwarder-app-function.csproj" />
+    <ProjectReference Include="../http-forwarder-utils/http-forwarder-utils.csproj" />
+    <ProjectReference Include="../http-forwarder-models/http-forwarder-models.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Using Include="Xunit"/>
+    <Using Include="Xunit" />
   </ItemGroup>
 </Project>

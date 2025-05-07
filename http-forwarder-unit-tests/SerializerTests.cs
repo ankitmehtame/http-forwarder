@@ -1,8 +1,8 @@
-﻿using http_forwarder_app.Core;
+using http_forwarder_app.Core;
 using http_forwarder_app.Models;
 using Shouldly;
 
-namespace http_forwarder_unittests;
+namespace http_forwarder_unit_tests;
 
 public class SerialzerTests
 {
