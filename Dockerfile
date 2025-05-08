@@ -25,3 +25,6 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/out ./
 ENTRYPOINT ["dotnet", "http-forwarder-app.dll"]
+
+ENV PORT=8080
+EXPOSE 8080
