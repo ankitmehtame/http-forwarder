@@ -1,6 +1,5 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /app
-EXPOSE 80
 
 # copy sln, csproj and restore
 COPY *.sln ./
