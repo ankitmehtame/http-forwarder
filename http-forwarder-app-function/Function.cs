@@ -17,23 +17,38 @@ public class Function : IHttpFunction
     private readonly HashSet<string> _allowedEvents;
 
     private const string AllowedEventsEnvVar = "ALLOWED_EVENTS";
+    private static long InstantiationCounter = 0;
 
     public Function(ILogger<Function> logger, IConfiguration configuration, PublisherClient publisherClient)
     {
+        var instanceCount = Interlocked.Increment(ref InstantiationCounter);
+        var isFirstTime = instanceCount == 1;
         _logger = logger;
 
-        var allowedEvents = configuration.GetValue<string?>(AllowedEventsEnvVar) ?? string.Empty;
-
-        if (string.IsNullOrEmpty(allowedEvents))
+        try
         {
-            _logger.LogError("Environment variable '{AllowedEventNamesEnvVar}' is not set.", AllowedEventsEnvVar);
-            throw new InvalidOperationException($"Environment variable '{AllowedEventsEnvVar}' is not set.");
-        }
-        _allowedEvents = allowedEvents
-                            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var allowedEvents = configuration.GetValue<string?>(AllowedEventsEnvVar) ?? string.Empty;
+            if (isFirstTime)
+            {
+                _logger.LogInformation("Allowed events - {allowedEvents}", allowedEvents);
+            }
 
-        _publisher = publisherClient;
+            if (string.IsNullOrEmpty(allowedEvents))
+            {
+                _logger.LogError("Environment variable '{AllowedEventNamesEnvVar}' is not set.", AllowedEventsEnvVar);
+                throw new InvalidOperationException($"Environment variable '{AllowedEventsEnvVar}' is not set.");
+            }
+            _allowedEvents = allowedEvents
+                                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            _publisher = publisherClient;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("Error during instantiating {className} {instanceCount} - {errorMessage}", nameof(Function), instanceCount, ex);
+            throw;
+        }
     }
 
     public async Task HandleAsync(HttpContext context)
