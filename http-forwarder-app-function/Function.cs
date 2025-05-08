@@ -46,7 +46,6 @@ public class Function : IHttpFunction
                                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             _publisher = publisherClientFactory.Create();
-            _logger.LogInformation("Instantiating {className} {instanceCount}", nameof(Function), instanceCount);
         }
         catch (Exception ex)
         {
@@ -57,7 +56,6 @@ public class Function : IHttpFunction
 
     public async Task HandleAsync(HttpContext context)
     {
-        _logger.LogInformation("Function started processing request");
         var requestMethod = context.Request.Method;
         var requestPath = context.Request.Path.Value;
         _logger.LogInformation("Received HTTP {requestMethod} request at {requestPath}", requestMethod, requestPath);
@@ -109,14 +107,14 @@ public class Function : IHttpFunction
 
             string messageId = await _publisher.PublishAsync(pubsubMessage);
 
-            _logger.LogInformation("Message published to Pub/Sub with ID: {messageId}", messageId);
+            _logger.LogInformation("Message published to Pub/Sub with ID: {messageId} for event {eventName} & method {requestMethod}", messageId, eventName, requestMethod);
 
             context.Response.StatusCode = StatusCodes.Status200OK;
             await context.Response.WriteAsync($"Message published successfully. Message ID: {messageId} for event {eventName} & method {requestMethod}");
         }
         catch (Exception ex)
         {
-            _logger.LogError("Failed to publish message to Pub/Sub: {errorMessage}", ex.Message);
+            _logger.LogError("Failed to publish message to Pub/Sub: {errorMessage} for {event} & method {requestMethod}", ex, eventName, requestMethod);
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             await context.Response.WriteAsync($"Failed to publish message: {ex.Message}");
         }

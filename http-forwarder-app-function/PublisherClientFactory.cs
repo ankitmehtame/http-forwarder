@@ -21,7 +21,6 @@ public class PublisherClientFactory : IPublisherClientFactory
 
     private PublisherClient CreateInstance()
     {
-        _logger.LogInformation("Creating {type}", nameof(PublisherClient));
         string? projectId = _configuration.GetValue<string?>("GOOGLE_CLOUD_PROJECT_ID");
         string? topicId = _configuration.GetValue<string?>("PUBSUB_TOPIC_ID");
 
@@ -37,12 +36,11 @@ public class PublisherClientFactory : IPublisherClientFactory
         }
 
         TopicName topicName = TopicName.FromProjectTopic(projectId, topicId);
-        _logger.LogInformation($"Creating PublisherClient for topic: {topicName}");
+        _logger.LogInformation("Creating PublisherClient for topic: {topicName}", topicName);
 
         try
         {
             PublisherClient client = PublisherClient.Create(topicName);
-            _logger.LogInformation("PublisherClient created successfully.");
             return client;
         }
         catch (Exception ex)
