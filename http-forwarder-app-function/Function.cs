@@ -43,6 +43,7 @@ public class Function : IHttpFunction
                                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             _publisher = publisherClient;
+            _logger?.LogInformation("Instantiating {className} {instanceCount}", nameof(Function), instanceCount);
         }
         catch (Exception ex)
         {
@@ -53,6 +54,7 @@ public class Function : IHttpFunction
 
     public async Task HandleAsync(HttpContext context)
     {
+        _logger.LogInformation("Function started processing request");
         var requestMethod = context.Request.Method;
         var requestPath = context.Request.Path.Value;
         _logger.LogInformation("Received HTTP {requestMethod} request at {requestPath}", requestMethod, requestPath);
