@@ -23,7 +23,9 @@ public class FunctionUnitTests
     {
         // Arrange
         var mockLogger = new Mock<ILogger<http_forwarder_app.Functions.Function>>();
+        var mockPublisherClientFactory = new Mock<http_forwarder_app.Functions.IPublisherClientFactory>();
         var mockPublisherClient = new Mock<PublisherClient>();
+        mockPublisherClientFactory.Setup(x => x.Create()).Returns(mockPublisherClient.Object);
         var inMemorySettings = new Dictionary<string, string?> {
             {"ALLOWED_EVENTS", allowedEvents},
             {"GOOGLE_CLOUD_PROJECT_ID", "test-project-id"},
@@ -38,7 +40,7 @@ public class FunctionUnitTests
         var content = new { Name = "Jane Doe", Age = 40, City = "London" };
         var jsonContent = JsonUtils.Serialize(content, false);
         var requestBodyStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(jsonContent));
-        
+
 
         // Set up HttpRequest to simulate a POST request with a path and body
         var eventName = "user-registered";
@@ -51,13 +53,13 @@ public class FunctionUnitTests
         httpContext.Features.Set(reqFeature);
 
         var responseBodyStream = new MemoryStream();
-        
+
         var respFeature = httpContext.Features.Get<IHttpResponseFeature>() ?? new HttpResponseFeature();
         httpContext.Features.Set(respFeature);
 
         var responseBodyFeature = new StreamResponseBodyFeature(responseBodyStream);
         httpContext.Features.Set<IHttpResponseBodyFeature>(responseBodyFeature);
-        
+
         // Set up the mock PublisherClient's PublishAsync method
         // We don't need it to actually publish, just verify it's called.
         // Return a dummy message ID.
@@ -67,7 +69,7 @@ public class FunctionUnitTests
             .Verifiable(); // Verify PublishAsync is called
 
 
-        var function = new http_forwarder_app.Functions.Function(mockLogger.Object, configuration, mockPublisherClient.Object);
+        var function = new http_forwarder_app.Functions.Function(mockLogger.Object, configuration, mockPublisherClientFactory.Object);
 
 
         // Act
@@ -111,7 +113,9 @@ public class FunctionUnitTests
     {
         // Arrange
         var mockLogger = new Mock<ILogger<http_forwarder_app.Functions.Function>>();
+        var mockPublisherClientFactory = new Mock<http_forwarder_app.Functions.IPublisherClientFactory>();
         var mockPublisherClient = new Mock<PublisherClient>();
+        mockPublisherClientFactory.Setup(x => x.Create()).Returns(mockPublisherClient.Object);
         var inMemorySettings = new Dictionary<string, string?> {
             {"ALLOWED_EVENTS", "xyz, not-user-registered"},
             {"GOOGLE_CLOUD_PROJECT_ID", "test-project-id"},
@@ -126,7 +130,7 @@ public class FunctionUnitTests
         var content = new { Name = "Jane Doe", Age = 40, City = "London" };
         var jsonContent = JsonUtils.Serialize(content, false);
         var requestBodyStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(jsonContent));
-        
+
 
         // Set up HttpRequest to simulate a POST request with a path and body
         var eventName = "user-registered";
@@ -139,13 +143,13 @@ public class FunctionUnitTests
         httpContext.Features.Set(reqFeature);
 
         var responseBodyStream = new MemoryStream();
-        
+
         var respFeature = httpContext.Features.Get<IHttpResponseFeature>() ?? new HttpResponseFeature();
         httpContext.Features.Set(respFeature);
 
         var responseBodyFeature = new StreamResponseBodyFeature(responseBodyStream);
         httpContext.Features.Set<IHttpResponseBodyFeature>(responseBodyFeature);
-        
+
         // Set up the mock PublisherClient's PublishAsync method
         // We don't need it to actually publish, just verify it's called.
         // Return a dummy message ID.
@@ -155,7 +159,7 @@ public class FunctionUnitTests
             .Verifiable(); // Verify PublishAsync is called
 
 
-        var function = new http_forwarder_app.Functions.Function(mockLogger.Object, configuration, mockPublisherClient.Object);
+        var function = new http_forwarder_app.Functions.Function(mockLogger.Object, configuration, mockPublisherClientFactory.Object);
 
 
         // Act
@@ -185,7 +189,9 @@ public class FunctionUnitTests
     {
         // Arrange
         var mockLogger = new Mock<ILogger<http_forwarder_app.Functions.Function>>();
+        var mockPublisherClientFactory = new Mock<http_forwarder_app.Functions.IPublisherClientFactory>();
         var mockPublisherClient = new Mock<PublisherClient>();
+        mockPublisherClientFactory.Setup(x => x.Create()).Returns(mockPublisherClient.Object);
         var inMemorySettings = new Dictionary<string, string?> {
             {"ALLOWED_EVENTS", "xyz, user-registered"},
             {"GOOGLE_CLOUD_PROJECT_ID", "test-project-id"},
@@ -208,21 +214,21 @@ public class FunctionUnitTests
         httpContext.Features.Set(reqFeature);
 
         var responseBodyStream = new MemoryStream();
-        
+
         var respFeature = httpContext.Features.Get<IHttpResponseFeature>() ?? new HttpResponseFeature();
         httpContext.Features.Set(respFeature);
 
         var responseBodyFeature = new StreamResponseBodyFeature(responseBodyStream);
         httpContext.Features.Set<IHttpResponseBodyFeature>(responseBodyFeature);
-        
-        
+
+
         mockPublisherClient
             .Setup(p => p.PublishAsync(It.IsAny<PubsubMessage>()))
             .ReturnsAsync("test-message-id-123")
             .Verifiable(Times.Never);
 
 
-        var function = new http_forwarder_app.Functions.Function(mockLogger.Object, configuration, mockPublisherClient.Object);
+        var function = new http_forwarder_app.Functions.Function(mockLogger.Object, configuration, mockPublisherClientFactory.Object);
 
 
         // Act

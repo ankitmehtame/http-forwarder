@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Google.Cloud.Functions.Framework;
+using Google.Cloud.Functions.Hosting;
 using Google.Cloud.PubSub.V1;
 using http_forwarder_app.Core;
 using http_forwarder_app.Models;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace http_forwarder_app.Functions;
 
+[FunctionsStartup(typeof(Startup))]
 public class Function : IHttpFunction
 {
     private readonly ILogger<Function> _logger;
@@ -19,10 +21,11 @@ public class Function : IHttpFunction
     private const string AllowedEventsEnvVar = "ALLOWED_EVENTS";
     private static long InstantiationCounter = 0;
 
-    public Function(ILogger<Function> logger, IConfiguration configuration, PublisherClient publisherClient)
+    public Function(ILogger<Function> logger, IConfiguration configuration, IPublisherClientFactory publisherClientFactory)
     {
         var instanceCount = Interlocked.Increment(ref InstantiationCounter);
         var isFirstTime = instanceCount == 1;
+        ArgumentNullException.ThrowIfNull(logger);
         _logger = logger;
 
         try
@@ -42,12 +45,12 @@ public class Function : IHttpFunction
                                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            _publisher = publisherClient;
-            _logger?.LogInformation("Instantiating {className} {instanceCount}", nameof(Function), instanceCount);
+            _publisher = publisherClientFactory.Create();
+            _logger.LogInformation("Instantiating {className} {instanceCount}", nameof(Function), instanceCount);
         }
         catch (Exception ex)
         {
-            _logger?.LogError("Error during instantiating {className} {instanceCount} - {errorMessage}", nameof(Function), instanceCount, ex);
+            _logger.LogError("Error during instantiating {className} {instanceCount} - {errorMessage}", nameof(Function), instanceCount, ex);
             throw;
         }
     }
