@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Google.Cloud.Functions.Framework;
+using Google.Cloud.Functions.Hosting;
 using Google.Cloud.PubSub.V1;
 using http_forwarder_app.Core;
 using http_forwarder_app.Models;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace http_forwarder_app.Functions;
 
+[FunctionsStartup(typeof(Startup))]
 public class Function : IHttpFunction
 {
     private readonly ILogger<Function> _logger;
@@ -17,23 +19,39 @@ public class Function : IHttpFunction
     private readonly HashSet<string> _allowedEvents;
 
     private const string AllowedEventsEnvVar = "ALLOWED_EVENTS";
+    private static long InstantiationCounter = 0;
 
-    public Function(ILogger<Function> logger, IConfiguration configuration, PublisherClient publisherClient)
+    public Function(ILogger<Function> logger, IConfiguration configuration, IPublisherClientFactory publisherClientFactory)
     {
+        var instanceCount = Interlocked.Increment(ref InstantiationCounter);
+        var isFirstTime = instanceCount == 1;
+        ArgumentNullException.ThrowIfNull(logger);
         _logger = logger;
 
-        var allowedEvents = configuration.GetValue<string?>(AllowedEventsEnvVar) ?? string.Empty;
-
-        if (string.IsNullOrEmpty(allowedEvents))
+        try
         {
-            _logger.LogError("Environment variable '{AllowedEventNamesEnvVar}' is not set.", AllowedEventsEnvVar);
-            throw new InvalidOperationException($"Environment variable '{AllowedEventsEnvVar}' is not set.");
-        }
-        _allowedEvents = allowedEvents
-                            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var allowedEvents = configuration.GetValue<string?>(AllowedEventsEnvVar) ?? string.Empty;
+            if (isFirstTime)
+            {
+                _logger.LogInformation("Allowed events - {allowedEvents}", allowedEvents);
+            }
 
-        _publisher = publisherClient;
+            if (string.IsNullOrEmpty(allowedEvents))
+            {
+                _logger.LogError("Environment variable '{AllowedEventNamesEnvVar}' is not set.", AllowedEventsEnvVar);
+                throw new InvalidOperationException($"Environment variable '{AllowedEventsEnvVar}' is not set.");
+            }
+            _allowedEvents = allowedEvents
+                                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            _publisher = publisherClientFactory.Create();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Error during instantiating {className} {instanceCount} - {errorMessage}", nameof(Function), instanceCount, ex);
+            throw;
+        }
     }
 
     public async Task HandleAsync(HttpContext context)
@@ -84,19 +102,19 @@ public class Function : IHttpFunction
             {
                 Data = Google.Protobuf.ByteString.CopyFrom(messageBytes),
             };
-            pubsubMessage.Attributes.Add("EVENT", eventName);
-            pubsubMessage.Attributes.Add("METHOD", requestMethod);
+            pubsubMessage.Attributes.Add(FunctionAttributes.EventAttribute, eventName);
+            pubsubMessage.Attributes.Add(FunctionAttributes.MethodAttribute, requestMethod);
 
             string messageId = await _publisher.PublishAsync(pubsubMessage);
 
-            _logger.LogInformation("Message published to Pub/Sub with ID: {messageId}", messageId);
+            _logger.LogInformation("Message published to Pub/Sub with ID: {messageId} for event {eventName} & method {requestMethod}", messageId, eventName, requestMethod);
 
             context.Response.StatusCode = StatusCodes.Status200OK;
             await context.Response.WriteAsync($"Message published successfully. Message ID: {messageId} for event {eventName} & method {requestMethod}");
         }
         catch (Exception ex)
         {
-            _logger.LogError("Failed to publish message to Pub/Sub: {errorMessage}", ex.Message);
+            _logger.LogError("Failed to publish message to Pub/Sub: {errorMessage} for {event} & method {requestMethod}", ex, eventName, requestMethod);
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             await context.Response.WriteAsync($"Failed to publish message: {ex.Message}");
         }

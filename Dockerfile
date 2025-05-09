@@ -1,6 +1,5 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /app
-EXPOSE 80
 
 # copy sln, csproj and restore
 COPY *.sln ./
@@ -26,3 +25,6 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/out ./
 ENTRYPOINT ["dotnet", "http-forwarder-app.dll"]
+
+ENV PORT=8080
+EXPOSE 8080

@@ -5,6 +5,7 @@ using System.Net.Http;
 using http_forwarder_app;
 using http_forwarder_app.Core;
 using http_forwarder_app.Models;
+using http_forwarder_app.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,6 +38,8 @@ builder.Services.AddSwaggerGen(c => c.SwaggerDoc("v1", new OpenApiInfo
 builder.Services.AddSingleton<IRestClient, RestClient>();
 builder.Services.AddSingleton<AppState, AppState>();
 builder.Services.AddSingleton<ForwardingRulesReader, ForwardingRulesReader>();
+builder.Services.AddSingleton<ForwardingService>();
+builder.Services.AddHostedService<SubscriptionService>();
 
 var app = builder.Build();
 
@@ -62,7 +65,7 @@ var loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
 loggerFactory.AddFile("logs/http-forwarder-{Date}.log", LogLevel.Debug);
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("Environment is {environmentName}", app.Environment.EnvironmentName);
+logger.LogInformation("Environment is {environmentName}, starting up at {time}", app.Environment.EnvironmentName, DateTimeOffset.Now.ToString("o"));
 
 logger.LogInformation("Info version is {InfoVersion}", VersionUtils.InfoVersion);
 

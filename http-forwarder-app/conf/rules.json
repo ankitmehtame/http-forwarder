@@ -2,7 +2,12 @@
     {
         "method": "GET",
         "event": "TEST",
-        "targetUrl": "https://httpbin.org/get?name=test&value=123"
+        "targetUrl": "https://httpbin.org/get?name=test&value=123",
+        "tags": [
+            "local",
+            "home",
+            "cloud"
+        ]
     },
     {
         "method": "POST",
@@ -12,12 +17,22 @@
         "headers": {
             "Content-Type": "application/json"
         },
-        "hasContent": false
+        "hasContent": false,
+        "tags": [
+            "local",
+            "home",
+            "cloud"
+        ]
     },
     {
         "method": "GET",
         "event": "ping-test",
-        "targetUrl": "/api/ping"
+        "targetUrl": "/api/ping",
+        "tags": [
+            "local",
+            "home",
+            "cloud"
+        ]
     },
     {
         "method": "POST",
@@ -27,6 +42,11 @@
         "headers": {
             "Content-Type": "application/json"
         },
-        "hasContent": false
+        "hasContent": false,
+        "tags": [
+            "local",
+            "home",
+            "cloud"
+        ]
     }
 ]
