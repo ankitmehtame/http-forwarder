@@ -102,8 +102,8 @@ public class Function : IHttpFunction
             {
                 Data = Google.Protobuf.ByteString.CopyFrom(messageBytes),
             };
-            pubsubMessage.Attributes.Add("EVENT", eventName);
-            pubsubMessage.Attributes.Add("METHOD", requestMethod);
+            pubsubMessage.Attributes.Add(FunctionAttributes.EventAttribute, eventName);
+            pubsubMessage.Attributes.Add(FunctionAttributes.MethodAttribute, requestMethod);
 
             string messageId = await _publisher.PublishAsync(pubsubMessage);
 

@@ -1,3 +1,4 @@
+using http_forwarder_app.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -21,6 +22,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
         builder.ConfigureTestServices(s =>
         {
             s.AddTransient<HttpMessageHandlerBuilder>(sp => new TestServerHttpMessageHandlerBuilder(Server));
+            s.Remove(s.Single(x => x.ImplementationType == typeof(SubscriptionService)));
         });
     }
 }

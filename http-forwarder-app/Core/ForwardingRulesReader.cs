@@ -11,12 +11,16 @@ namespace http_forwarder_app.Core
     public class ForwardingRulesReader
     {
         private readonly ILogger<ForwardingRulesReader> _logger;
+        private readonly string _locationTag;
 
         public ForwardingRulesReader(IConfiguration configuration, ILogger<ForwardingRulesReader> logger, AppState appState)
         {
             Configuration = configuration;
             _logger = logger;
             AppState = appState;
+            var locationTag = configuration.GetValue<string?>(Constants.LOCATION_TAG);
+            if (string.IsNullOrEmpty(locationTag)) throw new ArgumentNullException(nameof(locationTag), $"Property {Constants.LOCATION_TAG} should be set");
+            _locationTag = locationTag;
         }
 
         private IConfiguration Configuration { get; }
@@ -53,8 +57,9 @@ namespace http_forwarder_app.Core
             _logger.LogInformation("Reading rules file from {rulesJsonFilePath}", rulesJsonFilePath);
             var rulesJson = File.ReadAllText(rulesJsonFilePath);
             var rules = JsonUtils.Deserialize<ForwardingRule[]>(rulesJson) ?? [];
-            _logger.LogInformation("Read {rulesLength} forwarding rules - {rulesJson}", rules.Length, rules);
-            return rules;
+            var validRules = rules.Where(rule => rule.HasTag(_locationTag)).ToArray();
+            _logger.LogInformation("Read {validRulesCount}/{rulesLength} forwarding rules valid for location '{location}' - {rulesJson}", validRules.Length, rules.Length, _locationTag, rules);
+            return validRules;
         }
 
         public ForwardingRule? Find(string method, string eventName)
