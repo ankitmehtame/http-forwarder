@@ -58,7 +58,7 @@ namespace http_forwarder_app.Core
             var rulesJson = File.ReadAllText(rulesJsonFilePath);
             var rules = JsonUtils.Deserialize<ForwardingRule[]>(rulesJson) ?? [];
             var validRules = rules.Where(rule => rule.HasTag(_locationTag)).ToArray();
-            _logger.LogInformation("Read {validRulesCount}/{rulesLength} forwarding rules valid for location '{location}' - {rulesJson}", validRules.Length, rules.Length, _locationTag, rules);
+            _logger.LogInformation("Read {validRulesCount}/{rulesLength} forwarding rules valid for location '{location}' - {rulesJson}", validRules.Length, rules.Length, _locationTag, validRules);
             return validRules;
         }
 

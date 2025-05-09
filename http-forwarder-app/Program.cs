@@ -65,7 +65,7 @@ var loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
 loggerFactory.AddFile("logs/http-forwarder-{Date}.log", LogLevel.Debug);
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("Environment is {environmentName}", app.Environment.EnvironmentName);
+logger.LogInformation("Environment is {environmentName}, starting up at {time}", app.Environment.EnvironmentName, DateTimeOffset.Now.ToString("o"));
 
 logger.LogInformation("Info version is {InfoVersion}", VersionUtils.InfoVersion);
 
