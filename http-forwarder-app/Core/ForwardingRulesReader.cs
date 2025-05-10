@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using http_forwarder_app.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -18,7 +19,7 @@ namespace http_forwarder_app.Core
             Configuration = configuration;
             _logger = logger;
             AppState = appState;
-            var locationTag = configuration.GetValue<string?>(Constants.LOCATION_TAG);
+            var locationTag = configuration.GetLocationTag();
             if (string.IsNullOrEmpty(locationTag)) throw new ArgumentNullException(nameof(locationTag), $"Property {Constants.LOCATION_TAG} should be set");
             _locationTag = locationTag;
         }
@@ -47,31 +48,39 @@ namespace http_forwarder_app.Core
             {
                 _logger.LogInformation("Rules file found at {rulesFile}", rulesFile);
             }
-            var rules = Read();
-            AppState.Rules = rules?.ToArray() ?? [];
+            SetState();
         }
 
-        public IEnumerable<ForwardingRule> Read()
+        private ForwardingRule[] Read()
         {
             var rulesJsonFilePath = Configuration.GetConfFilePath("rules.json");
             _logger.LogInformation("Reading rules file from {rulesJsonFilePath}", rulesJsonFilePath);
             var rulesJson = File.ReadAllText(rulesJsonFilePath);
             var rules = JsonUtils.Deserialize<ForwardingRule[]>(rulesJson) ?? [];
+            return rules;
+        }
+
+        private void SetState()
+        {
+            var rules = Read();
             var validRules = rules.Where(rule => rule.HasTag(_locationTag)).ToArray();
-            _logger.LogInformation("Read {validRulesCount}/{rulesLength} forwarding rules valid for location '{location}' - {rulesJson}", validRules.Length, rules.Length, _locationTag, validRules);
-            return validRules;
+            var remoteRules = rules.Where(rule => !rule.HasTag(_locationTag)).ToArray();
+            _logger.LogInformation("Read {validRulesCount}/{rulesLength} forwarding rules valid for location '{location}' - {rulesJson}",
+                 validRules.Length, rules.Length, _locationTag, "[" + PrintMinimalRules(validRules));
+            _logger.LogInformation("Read {remoteRulesCount} remote rules - {remoteEvents}", remoteRules.Length, PrintMinimalRules(remoteRules));
+            AppState.Rules = validRules;
+            AppState.RemoteRules = remoteRules;
         }
 
         public ForwardingRule? Find(string method, string eventName)
         {
             var rule = SimpleFind(method, eventName);
-            if (rule != null)
-            {
-                return rule;
-            }
-            var rules = Read();
-            AppState.Rules = rules?.ToArray() ?? [];
-            rule = SimpleFind(method, eventName);
+            return rule;
+        }
+
+        public ForwardingRule? FindRemote(string method, string eventName)
+        {
+            var rule = SimpleRemoteFind(method, eventName);
             return rule;
         }
 
@@ -79,6 +88,17 @@ namespace http_forwarder_app.Core
         {
             var rule = AppState.Rules.FirstOrDefault(r => r.Method == method && string.Equals(r.Event, eventName, StringComparison.OrdinalIgnoreCase));
             return rule;
+        }
+
+        private ForwardingRule? SimpleRemoteFind(string method, string eventName)
+        {
+            var rule = AppState.RemoteRules.FirstOrDefault(r => r.Method == method && string.Equals(r.Event, eventName, StringComparison.OrdinalIgnoreCase));
+            return rule;
+        }
+
+        private string PrintMinimalRules(IEnumerable<ForwardingRule> rules)
+        {
+            return "[" + string.Join(';', rules.Select(r => r.ToMinimal())) + "]";
         }
     }
 }

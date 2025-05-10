@@ -1,11 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <RootNamespace>http_forwarder_models</RootNamespace>
+    <RootNamespace>http_forwarder_cloud</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Google.Cloud.PubSub.V1" Version="*"/>
     <PackageReference Include="OneOf" Version="*"/>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../http-forwarder-utils/http-forwarder-utils.csproj"/>
   </ItemGroup>
 </Project>

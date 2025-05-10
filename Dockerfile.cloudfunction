@@ -3,12 +3,14 @@ WORKDIR /app
 
 # Copy the projects and its dependencies
 COPY ./http-forwarder-app-function/ ./http-forwarder-app-function/
+COPY ./http-forwarder-cloud/ ./http-forwarder-cloud/
 COPY ./http-forwarder-utils/ ./http-forwarder-utils/
 COPY ./http-forwarder-models/ ./http-forwarder-models/
 
 RUN dotnet restore ./http-forwarder-app-function/http-forwarder-app-function.csproj
 RUN dotnet restore ./http-forwarder-utils/http-forwarder-utils.csproj
 RUN dotnet restore ./http-forwarder-models/http-forwarder-models.csproj
+RUN dotnet restore ./http-forwarder-cloud/http-forwarder-cloud.csproj
 
 RUN dotnet publish ./http-forwarder-app-function/http-forwarder-app-function.csproj -c Release -o /app/publish /p:UseAppHost=false
 

@@ -26,7 +26,13 @@ public record class ForwardingRule(string Method, string Event, string TargetUrl
         builder.Replace($", {nameof(__PrettyHeaders)} = ", $", {nameof(Headers)} = ");
         builder.Replace($", {nameof(Tags)} = System.Collections.Generic.HashSet`1[System.String]", string.Empty);
         builder.Replace($", {nameof(__PrettyTags)} = ", $", {nameof(Tags)} = ");
+
         return builder.ToString();
+    }
+
+    public ForwardingRuleMinimal ToMinimal()
+    {
+        return new ForwardingRuleMinimal(Method: Method, Event: Event, Tags: Tags);
     }
 }
 
@@ -46,6 +52,21 @@ public class PrettyPrintDictionary(IDictionary<string, string> Pairs)
             curIndex++;
         }
         builder.Append(']');
+        return builder.ToString();
+    }
+}
+
+public record class ForwardingRuleMinimal(string Method, string Event, HashSet<string> Tags)
+{
+    [JsonIgnore]
+    public string __PrettyTags { get; init; } = "[" + string.Join(", ", Tags ?? []) + "]";
+
+    public override string ToString()
+    {
+        var builder = new StringBuilder();
+        PrintMembers(builder);
+        builder.Replace($", {nameof(Tags)} = System.Collections.Generic.HashSet`1[System.String]", string.Empty);
+        builder.Replace($", {nameof(__PrettyTags)} = ", $", {nameof(Tags)} = ");
         return builder.ToString();
     }
 }

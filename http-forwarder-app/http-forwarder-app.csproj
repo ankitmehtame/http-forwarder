@@ -5,18 +5,19 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <None Update="conf\rules.json" CopyToOutputDirectory="PreserveNewest"/>
+    <None Update="conf\rules.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="*"/>
-    <PackageReference Include="Serilog.Extensions.Logging.File" Version="*"/>
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="*"/>
-    <PackageReference Include="Semver" Version="*"/>
-    <PackageReference Include="Google.Cloud.PubSub.V1" Version="*"/>
-    <PackageReference Include="OneOf" Version="*"/>
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="*" />
+    <PackageReference Include="Serilog.Extensions.Logging.File" Version="*" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="*" />
+    <PackageReference Include="Semver" Version="*" />
+    <PackageReference Include="Google.Cloud.PubSub.V1" Version="*" />
+    <PackageReference Include="OneOf" Version="*" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../http-forwarder-utils/http-forwarder-utils.csproj"/>
-    <ProjectReference Include="../http-forwarder-models/http-forwarder-models.csproj"/>
+    <ProjectReference Include="../http-forwarder-cloud/http-forwarder-cloud.csproj" />
+    <ProjectReference Include="../http-forwarder-utils/http-forwarder-utils.csproj" />
+    <ProjectReference Include="../http-forwarder-models/http-forwarder-models.csproj" />
   </ItemGroup>
 </Project>

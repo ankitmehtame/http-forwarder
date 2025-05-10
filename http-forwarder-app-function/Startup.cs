@@ -1,4 +1,6 @@
 using Google.Cloud.Functions.Hosting;
+using http_forwarder_app.Cloud;
+using http_forwarder_app.Models.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -17,6 +19,7 @@ public class Startup : FunctionsStartup
         services.AddCors(o => o.AddPolicy(OriginPolicy, b => b.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
         services.AddSingleton<IPublisherClientFactory, PublisherClientFactory>();
+        services.AddSingleton<IPublishingService, PublishingService>();
 
         base.ConfigureServices(context, services);
     }

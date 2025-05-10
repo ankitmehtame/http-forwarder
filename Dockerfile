@@ -3,17 +3,12 @@ WORKDIR /app
 
 # copy sln, csproj and restore
 COPY *.sln ./
-COPY http-forwarder-app/*.csproj ./http-forwarder-app/
 COPY http-forwarder-app/. ./http-forwarder-app/
-COPY http-forwarder-models/*.csproj ./http-forwarder-models/
 COPY http-forwarder-models/. ./http-forwarder-models/
-COPY http-forwarder-utils/*.csproj ./http-forwarder-utils/
 COPY http-forwarder-utils/. ./http-forwarder-utils/
-COPY http-forwarder-unit-tests/*.csproj ./http-forwarder-unit-tests/
+COPY http-forwarder-cloud/. ./http-forwarder-cloud/
 COPY http-forwarder-unit-tests/. ./http-forwarder-unit-tests/
-COPY http-forwarder-acceptance-tests/*.csproj ./http-forwarder-acceptance-tests/
 COPY http-forwarder-acceptance-tests/. ./http-forwarder-acceptance-tests/
-COPY http-forwarder-app-function/*.csproj ./http-forwarder-app-function/
 COPY http-forwarder-app-function/. ./http-forwarder-app-function/
 
 RUN dotnet build http-forwarder.sln -c Release
