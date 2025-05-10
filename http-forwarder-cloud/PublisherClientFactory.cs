@@ -1,29 +1,33 @@
+using System.Collections.Concurrent;
 using Google.Cloud.PubSub.V1;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace http_forwarder_app.Functions;
+namespace http_forwarder_app.Cloud;
 
 public class PublisherClientFactory : IPublisherClientFactory
 {
     private readonly ILogger<PublisherClientFactory> _logger;
-    private readonly IConfiguration _configuration;
-    private readonly Lazy<PublisherClient> _publisherClientLazy;
 
-    public PublisherClientFactory(ILogger<PublisherClientFactory> logger, IConfiguration configuration)
+    private readonly ConcurrentDictionary<string, Lazy<PublisherClient>> _publisherClients;
+
+    public PublisherClientFactory(ILogger<PublisherClientFactory> logger)
     {
         _logger = logger;
-        _configuration = configuration;
-        _publisherClientLazy = new Lazy<PublisherClient>(CreateInstance, false);
+        _publisherClients = new(StringComparer.OrdinalIgnoreCase);
     }
 
-    public PublisherClient Create() => _publisherClientLazy.Value;
-
-    private PublisherClient CreateInstance()
+    public PublisherClient GetOrCreate(string projectId, string topicId)
     {
-        string? projectId = _configuration.GetValue<string?>("GOOGLE_CLOUD_PROJECT_ID");
-        string? topicId = _configuration.GetValue<string?>("PUBSUB_TOPIC_ID");
+        string publisherClientKey = $"{projectId}__{topicId}".ToUpperInvariant().Normalize();
+        lock (publisherClientKey)
+        {
+            var publisherClientLazy = _publisherClients.GetOrAdd(publisherClientKey, (_) => new Lazy<PublisherClient>(() => CreateInstance(projectId, topicId), false));
+            return publisherClientLazy.Value;
+        }
+    }
 
+    private PublisherClient CreateInstance(string projectId, string topicId)
+    {
         if (string.IsNullOrEmpty(projectId))
         {
             _logger.LogError("Environment variable 'GOOGLE_CLOUD_PROJECT_ID' is not set for Pub/Sub client registration.");
@@ -53,5 +57,5 @@ public class PublisherClientFactory : IPublisherClientFactory
 
 public interface IPublisherClientFactory
 {
-    PublisherClient Create();
+    PublisherClient GetOrCreate(string projectId, string topicId);
 }

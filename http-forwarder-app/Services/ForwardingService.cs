@@ -24,32 +24,37 @@ public class ForwardingService
         AppState = appState;
     }
 
-    public Task<OneOf<HttpResponseMessage, NoMatchingRuleResult>> ProcessGetEvent(string eventName, string? requestHostUrl)
+    public Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, RemoteRuleFoundResult>> ProcessGetEvent(string eventName, string? requestHostUrl)
     {
         return ProcessGetOrDeleteEvent(HttpMethods.Get, eventName, requestHostUrl);
     }
 
-    public Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, NoBodyRuleResult>> ProcessPostEvent(string eventName, string? requestHostUrl, string requestContent)
+    public Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>> ProcessPostEvent(string eventName, string? requestHostUrl, string requestContent)
     {
         return ProcessPostOrPutEvent(HttpMethods.Post, eventName, requestHostUrl, requestContent);
     }
 
-    public Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, NoBodyRuleResult>> ProcessPutEvent(string eventName, string? requestHostUrl, string requestContent)
+    public Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>> ProcessPutEvent(string eventName, string? requestHostUrl, string requestContent)
     {
         return ProcessPostOrPutEvent(HttpMethods.Put, eventName, requestHostUrl, requestContent);
     }
 
-    public Task<OneOf<HttpResponseMessage, NoMatchingRuleResult>> ProcessDeleteEvent(string eventName, string? requestHostUrl)
+    public Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, RemoteRuleFoundResult>> ProcessDeleteEvent(string eventName, string? requestHostUrl)
     {
         return ProcessGetOrDeleteEvent(HttpMethods.Delete, eventName, requestHostUrl);
     }
 
-    private async Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, NoBodyRuleResult>> ProcessPostOrPutEvent(string method, string eventName, string? requestHostUrl, string requestContent)
+    private async Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>> ProcessPostOrPutEvent(string method, string eventName, string? requestHostUrl, string requestContent)
     {
         if (method != HttpMethods.Post && method != HttpMethods.Put) throw new ArgumentException($"Method {method} is not supported here", nameof(method));
         var fwdRule = RulesReader.Find(method, eventName);
         if (fwdRule == null)
         {
+            var remoteRule = RulesReader.FindRemote(method, eventName);
+            if (remoteRule != null)
+            {
+                return new RemoteRuleFoundResult(remoteRule);
+            }
             _logger.LogWarning("{method} for event {eventName} does not match any rules", method, eventName);
             return NoMatchingRuleResult.Instance;
         }
@@ -71,7 +76,7 @@ public class ForwardingService
         return await call;
     }
 
-    private async Task<OneOf<HttpResponseMessage, NoMatchingRuleResult>> ProcessGetOrDeleteEvent(string method, string eventName, string? requestHostUrl)
+    private async Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, RemoteRuleFoundResult>> ProcessGetOrDeleteEvent(string method, string eventName, string? requestHostUrl)
     {
         if (method != HttpMethods.Get && method != HttpMethods.Delete) throw new ArgumentException($"Method {method} is not supported here", nameof(method));
         _logger.LogDebug("{method} called with event {eventName}", method, eventName);
@@ -83,6 +88,11 @@ public class ForwardingService
         var fwdRule = RulesReader.Find(method, eventName);
         if (fwdRule == null)
         {
+            var remoteRule = RulesReader.FindRemote(method, eventName);
+            if (remoteRule != null)
+            {
+                return new RemoteRuleFoundResult(remoteRule);
+            }
             _logger.LogWarning("{method} for event {eventName} does not match any rules", method, eventName);
             return NoMatchingRuleResult.Instance;
         }

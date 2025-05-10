@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using http_forwarder_app;
+using http_forwarder_app.Cloud;
 using http_forwarder_app.Core;
 using http_forwarder_app.Models;
+using http_forwarder_app.Models.Services;
 using http_forwarder_app.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -37,9 +39,13 @@ builder.Services.AddSwaggerGen(c => c.SwaggerDoc("v1", new OpenApiInfo
 }));
 builder.Services.AddSingleton<IRestClient, RestClient>();
 builder.Services.AddSingleton<AppState, AppState>();
-builder.Services.AddSingleton<ForwardingRulesReader, ForwardingRulesReader>();
+builder.Services.AddSingleton<ForwardingRulesReader>();
 builder.Services.AddSingleton<ForwardingService>();
-builder.Services.AddHostedService<SubscriptionService>();
+builder.Services.AddSingleton<IPublisherClientFactory, PublisherClientFactory>();
+builder.Services.AddSingleton<IPublishingService, PublishingService>();
+builder.Services.AddSingleton<CloudMessageHandlerFactory>();
+builder.Services.AddSingleton<RemoteRulePublishingService>();
+builder.Services.AddHostedService<BackgroundListeningService>();
 
 var app = builder.Build();
 

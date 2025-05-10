@@ -48,5 +48,18 @@
             "home",
             "cloud"
         ]
+    },
+    {
+        "method": "POST",
+        "event": "cloud-test",
+        "targetUrl": "/api/cloud",
+        "content": "{\"message\": \"cloud-message-567\"}",
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "hasContent": false,
+        "tags": [
+            "cloud"
+        ]
     }
 ]
