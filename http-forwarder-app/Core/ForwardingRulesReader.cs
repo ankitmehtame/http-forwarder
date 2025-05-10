@@ -66,8 +66,8 @@ namespace http_forwarder_app.Core
             var validRules = rules.Where(rule => rule.HasTag(_locationTag)).ToArray();
             var remoteRules = rules.Where(rule => !rule.HasTag(_locationTag)).ToArray();
             _logger.LogInformation("Read {validRulesCount}/{rulesLength} forwarding rules valid for location '{location}' - {rulesJson}",
-                 validRules.Length, rules.Length, _locationTag, validRules.Select(r => r.ToMinimal()));
-            _logger.LogInformation("Read {remoteRulesCount} remote rules - {remoteEvents}", remoteRules.Length, remoteRules.Select(r => r.ToMinimal()));
+                 validRules.Length, rules.Length, _locationTag, "[" + PrintMinimalRules(validRules));
+            _logger.LogInformation("Read {remoteRulesCount} remote rules - {remoteEvents}", remoteRules.Length, PrintMinimalRules(remoteRules));
             AppState.Rules = validRules;
             AppState.RemoteRules = remoteRules;
         }
@@ -94,6 +94,11 @@ namespace http_forwarder_app.Core
         {
             var rule = AppState.RemoteRules.FirstOrDefault(r => r.Method == method && string.Equals(r.Event, eventName, StringComparison.OrdinalIgnoreCase));
             return rule;
+        }
+
+        private string PrintMinimalRules(IEnumerable<ForwardingRule> rules)
+        {
+            return "[" + string.Join(';', rules.Select(r => r.ToMinimal())) + "]";
         }
     }
 }
