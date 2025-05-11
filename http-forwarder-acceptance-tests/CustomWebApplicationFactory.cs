@@ -1,4 +1,4 @@
-using http_forwarder_app.Services;
+using http_forwarder_app.Cloud;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -15,14 +15,16 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
         builder.ConfigureAppConfiguration(builder =>
         {
             builder.SetBasePath(Directory.GetCurrentDirectory());
+            builder.AddJsonFile("appsettings.test.json");
         });
 
-        builder.UseEnvironment("Testing");
+        builder.UseEnvironment("Test");
 
         builder.ConfigureTestServices(s =>
         {
             s.AddTransient<HttpMessageHandlerBuilder>(sp => new TestServerHttpMessageHandlerBuilder(Server));
-            s.Remove(s.Single(x => x.ImplementationType == typeof(SubscriptionService)));
+            s.Remove(s.Single(x => x.ImplementationType == typeof(PublisherClientFactory)));
+            s.AddSingleton<IPublisherClientFactory, StubPublisherClientFactory>();
         });
     }
 }

@@ -14,11 +14,15 @@
     <PackageReference Include="Microsoft.AspNetCore.Testing" Version="*"/>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="*"/>
     <PackageReference Include="Shouldly" Version="*"/>
+    <PackageReference Include="Moq" Version="*"/>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../http-forwarder-app/http-forwarder-app.csproj"/>
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit"/>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="appsettings.test.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
