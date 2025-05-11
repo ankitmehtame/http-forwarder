@@ -45,7 +45,10 @@ builder.Services.AddSingleton<IPublisherClientFactory, PublisherClientFactory>()
 builder.Services.AddSingleton<IPublishingService, PublishingService>();
 builder.Services.AddSingleton<CloudMessageHandlerFactory>();
 builder.Services.AddSingleton<RemoteRulePublishingService>();
-builder.Services.AddHostedService<BackgroundListeningService>();
+if (builder.Configuration.IsListenerEnabled())
+{
+    builder.Services.AddHostedService<BackgroundListeningService>();
+}
 
 var app = builder.Build();
 
@@ -71,7 +74,8 @@ var loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
 loggerFactory.AddFile("logs/http-forwarder-{Date}.log", LogLevel.Debug);
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("Environment is {environmentName}, starting up at {time}", app.Environment.EnvironmentName, DateTimeOffset.Now.ToString("o"));
+logger.LogInformation("Environment is {environmentName}, location is {locationTag}, starting up at {time}",
+     app.Environment.EnvironmentName, app.Configuration.GetLocationTag(), DateTimeOffset.Now.ToString("o"));
 
 logger.LogInformation("Info version is {InfoVersion}", VersionUtils.InfoVersion);
 

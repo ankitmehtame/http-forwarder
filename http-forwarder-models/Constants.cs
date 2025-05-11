@@ -4,6 +4,10 @@ public static class Constants
 {
     public const string HTTP_CLIENT_IGNORE_SSL_ERROR = "ignore_ssl_error";
 
+    public const string LISTENER_ENABLED = "LISTENER_ENABLED";
+
+    public const string PUBLISHER_ENABLED = "PUBLISHER_ENABLED";
+
     public const string LOCATION_TAG = "LOCATION_TAG";
 
     public const string CLOUD_PROJECT_ID = "GOOGLE_CLOUD_PROJECT_ID";

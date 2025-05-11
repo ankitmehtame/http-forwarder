@@ -4,6 +4,16 @@ namespace http_forwarder_app.Core;
 
 public static class ConfigurationExtensions
 {
+    public static bool IsListenerEnabled(this IConfiguration configuration)
+    {
+        return configuration.GetValue<bool?>(Constants.LISTENER_ENABLED) ?? false;
+    }
+
+    public static bool IsPublisherEnabled(this IConfiguration configuration)
+    {
+        return configuration.GetValue<bool?>(Constants.PUBLISHER_ENABLED) ?? false;
+    }
+
     public static string? GetLocationTag(this IConfiguration configuration)
     {
         return configuration.GetValue<string?>(Constants.LOCATION_TAG);

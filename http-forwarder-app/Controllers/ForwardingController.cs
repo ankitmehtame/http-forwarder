@@ -7,6 +7,7 @@ using http_forwarder_app.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using OneOf;
 
 namespace http_forwarder_app.Controllers
@@ -16,10 +17,11 @@ namespace http_forwarder_app.Controllers
     [Route("api/[controller]")]
     [Route("forward")]
     [Route("api/forward")]
-    public class ForwardingController(ForwardingService forwardingService, RemoteRulePublishingService remoteRulePublishingService, IConfiguration configuration) : ControllerBase
+    public class ForwardingController(ForwardingService forwardingService, RemoteRulePublishingService remoteRulePublishingService, IConfiguration configuration, ILogger<ForwardingController> logger) : ControllerBase
     {
         private readonly ForwardingService _forwardingService = forwardingService;
         private readonly IConfiguration _configuration = configuration;
+        private readonly ILogger<ForwardingController> _logger = logger;
         private readonly RemoteRulePublishingService _remoteRulePublishingService = remoteRulePublishingService;
 
         [HttpGet]
@@ -138,6 +140,13 @@ namespace http_forwarder_app.Controllers
 
         private async Task HandleRemoteRule(ForwardingRule remoteRule, string requestContent)
         {
+            if (!_configuration.IsPublisherEnabled())
+            {
+                _logger.LogWarning("Request can not be processed by this system - {rule}", remoteRule.ToMinimal());
+                Response.StatusCode = StatusCodes.Status406NotAcceptable;
+                await Response.WriteAsync("Request can not be processed by this system");
+                return;
+            }
             ForwardingRequest forwardingRequest = new(Method: remoteRule.Method, Event: remoteRule.Event, Content: requestContent);
             var publishResult = await _remoteRulePublishingService.Publish(forwardingRequest, remoteRule);
             publishResult.Switch(

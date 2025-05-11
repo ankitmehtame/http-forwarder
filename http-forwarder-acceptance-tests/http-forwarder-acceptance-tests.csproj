@@ -22,4 +22,7 @@
   <ItemGroup>
     <Using Include="Xunit"/>
   </ItemGroup>
+  <ItemGroup>
+    <None Update="appsettings.test.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

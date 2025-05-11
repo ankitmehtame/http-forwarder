@@ -65,30 +65,30 @@ public class BackgroundListeningService : IHostedService
         var genericMessageHandler = _cloudMessageHandlerFactory.CreateHandler(canForwardToTopic: true, cancellationToken: shutdownToken);
         var locationMessageHandler = _cloudMessageHandlerFactory.CreateHandler(canForwardToTopic: false, cancellationToken: shutdownToken);
 
-        var genericSubscriptionTask = Task.Run(() => Subscribe(genericSubscriber, genericMessageHandler, shutdownToken), CancellationToken.None);
-        var locationSubscriptionTask = Task.Run(() => Subscribe(locationSubscriber, locationMessageHandler, shutdownToken), CancellationToken.None);
+        var genericSubscriptionTask = Task.Run(() => Subscribe(genericSubscriber, genericMessageHandler, subId: genericSubscriptionId, shutdownToken), CancellationToken.None);
+        var locationSubscriptionTask = Task.Run(() => Subscribe(locationSubscriber, locationMessageHandler, subId: locationSubscriptionId, shutdownToken), CancellationToken.None);
     }
 
-    private async Task Subscribe(SubscriberClient subscriber, CloudMessageHandler cloudMessageHandler, CancellationToken cancellationToken)
+    private async Task Subscribe(SubscriberClient subscriber, CloudMessageHandler cloudMessageHandler, string subId, CancellationToken cancellationToken)
     {
         await Task.Yield();
         while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
-                _logger.LogInformation("Looking for subscription messages");
+                _logger.LogInformation("Connecting to subscription messages from {subId}", subId);
                 await subscriber.StartAsync(cloudMessageHandler.OnMessage);
             }
             catch (OperationCanceledException)
             { }
             catch (Exception ex)
             {
-                _logger.LogWarning("Error during subscription {errorMessage}", ex);
+                _logger.LogWarning("Error during subscription {subId} {errorMessage}", subId, ex);
             }
             if (cancellationToken.IsCancellationRequested) break;
             await Task.Delay(TimeSpan.FromSeconds(_retryConnectionSeconds), cancellationToken).IgnoreCancellation();
         }
-        _logger.LogInformation("Stopped subscription");
+        _logger.LogInformation("Stopped subscription for {subId}", subId);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
