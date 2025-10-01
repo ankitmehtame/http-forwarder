@@ -5,6 +5,7 @@ using http_forwarder_app.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Shouldly;
+using System.Net;
 
 namespace http_forwarder_acceptance_tests;
 
@@ -59,5 +60,17 @@ public class ForwarderAcceptanceTests(CustomWebApplicationFactory<Program> facto
         var expectedMessage = new ForwardingRequest(Method: "POST", Event: "cloud-test", Content: """{}""");
         var expectedMessageJson = JsonUtils.Serialize(expectedMessage, false);
         messageData.ShouldBe(expectedMessageJson);
+    }
+
+    [Fact]
+    public async Task PostFailShouldReturnAcceptedForRetry()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsync("/forward/ping-fail", new StringContent("""{}"""));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        var responseText = await response.Content.ReadAsStringAsync();
+        responseText.ShouldBe("Request accepted for retry");
     }
 }

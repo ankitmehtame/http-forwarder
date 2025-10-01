@@ -72,15 +72,16 @@ public class CloudMessageHandler
         return Task.FromResult(SubscriberClient.Reply.Nack);
     }
 
-    private async Task<SubscriberClient.Reply> ProcessResult(Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>> processTask, ForwardingRequest forwardingRequest)
+    private async Task<SubscriberClient.Reply> ProcessResult(Task<OneOf<HttpResponseRuleResult, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>> processTask, ForwardingRequest forwardingRequest)
     {
         var result = await processTask;
 
         var ackResult = result.Match(
-            respMessage =>
+            respRuleResult =>
             {
                 string eventName = forwardingRequest.Event;
                 string requestMethod = forwardingRequest.Method;
+                var respMessage = respRuleResult.Response;
                 if (respMessage.IsSuccessStatusCode)
                 {
                     _logger.LogInformation("Success ({statusCode}) for event {eventName}, method {requestMethod}", respMessage.StatusCode, eventName, requestMethod);

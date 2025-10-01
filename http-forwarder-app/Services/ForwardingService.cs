@@ -9,7 +9,7 @@ using System;
 
 namespace http_forwarder_app.Services;
 
-public class ForwardingService
+public class ForwardingService : IForwardingService
 {
     private readonly ILogger<ForwardingService> _logger;
     private AppState AppState { get; init; }
@@ -24,27 +24,27 @@ public class ForwardingService
         AppState = appState;
     }
 
-    public Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, RemoteRuleFoundResult>> ProcessGetEvent(string eventName, string? requestHostUrl)
+    public Task<OneOf<HttpResponseRuleResult, NoMatchingRuleResult, RemoteRuleFoundResult>> ProcessGetEvent(string eventName, string? requestHostUrl)
     {
         return ProcessGetOrDeleteEvent(HttpMethods.Get, eventName, requestHostUrl);
     }
 
-    public Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>> ProcessPostEvent(string eventName, string? requestHostUrl, string requestContent)
+    public Task<OneOf<HttpResponseRuleResult, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>> ProcessPostEvent(string eventName, string? requestHostUrl, string requestContent)
     {
         return ProcessPostOrPutEvent(HttpMethods.Post, eventName, requestHostUrl, requestContent);
     }
 
-    public Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>> ProcessPutEvent(string eventName, string? requestHostUrl, string requestContent)
+    public Task<OneOf<HttpResponseRuleResult, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>> ProcessPutEvent(string eventName, string? requestHostUrl, string requestContent)
     {
         return ProcessPostOrPutEvent(HttpMethods.Put, eventName, requestHostUrl, requestContent);
     }
 
-    public Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, RemoteRuleFoundResult>> ProcessDeleteEvent(string eventName, string? requestHostUrl)
+    public Task<OneOf<HttpResponseRuleResult, NoMatchingRuleResult, RemoteRuleFoundResult>> ProcessDeleteEvent(string eventName, string? requestHostUrl)
     {
         return ProcessGetOrDeleteEvent(HttpMethods.Delete, eventName, requestHostUrl);
     }
 
-    private async Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>> ProcessPostOrPutEvent(string method, string eventName, string? requestHostUrl, string requestContent)
+    private async Task<OneOf<HttpResponseRuleResult, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>> ProcessPostOrPutEvent(string method, string eventName, string? requestHostUrl, string requestContent)
     {
         if (method != HttpMethods.Post && method != HttpMethods.Put) throw new ArgumentException($"Method {method} is not supported here", nameof(method));
         var fwdRule = RulesReader.Find(method, eventName);
@@ -73,10 +73,11 @@ public class ForwardingService
         var call = method == HttpMethods.Post
                     ? RestClient.MakePostCall(eventName, targetUrl, body, fwdRule.Headers, fwdRule.IgnoreSslError)
                     : RestClient.MakePutCall(eventName, targetUrl, body, fwdRule.Headers, fwdRule.IgnoreSslError);
-        return await call;
+        var response = await call;
+        return new HttpResponseRuleResult(response, fwdRule);
     }
 
-    private async Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, RemoteRuleFoundResult>> ProcessGetOrDeleteEvent(string method, string eventName, string? requestHostUrl)
+    private async Task<OneOf<HttpResponseRuleResult, NoMatchingRuleResult, RemoteRuleFoundResult>> ProcessGetOrDeleteEvent(string method, string eventName, string? requestHostUrl)
     {
         if (method != HttpMethods.Get && method != HttpMethods.Delete) throw new ArgumentException($"Method {method} is not supported here", nameof(method));
         _logger.LogDebug("{method} called with event {eventName}", method, eventName);
@@ -100,7 +101,8 @@ public class ForwardingService
         var call = method == HttpMethods.Get
                     ? RestClient.MakeGetCall(eventName, targetUrl, fwdRule.Headers, fwdRule.IgnoreSslError)
                     : RestClient.MakeDeleteCall(eventName, targetUrl, fwdRule.Headers, fwdRule.IgnoreSslError);
-        return await call;
+        var response = await call;
+        return new HttpResponseRuleResult(response, fwdRule);
     }
 
     private static string GetValidTargetUrl(ForwardingRule rule, string? requestHostUrl)

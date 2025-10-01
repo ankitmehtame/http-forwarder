@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 
@@ -40,11 +41,15 @@ builder.Services.AddSwaggerGen(c => c.SwaggerDoc("v1", new OpenApiInfo
 builder.Services.AddSingleton<IRestClient, RestClient>();
 builder.Services.AddSingleton<AppState, AppState>();
 builder.Services.AddSingleton<ForwardingRulesReader>();
-builder.Services.AddSingleton<ForwardingService>();
+builder.Services.AddSingleton<IForwardingService, ForwardingService>();
 builder.Services.AddSingleton<IPublisherClientFactory, PublisherClientFactory>();
 builder.Services.AddSingleton<IPublishingService, PublishingService>();
 builder.Services.AddSingleton<CloudMessageHandlerFactory>();
 builder.Services.AddSingleton<RemoteRulePublishingService>();
+builder.Services.AddSingleton<IFailedRequestStorage, FailedRequestStorage>();
+builder.Services.AddHostedService<RetryBackgroundService>();
+builder.Services.AddSingleton<ISystemClock, SystemClock>();
+
 if (builder.Configuration.IsListenerEnabled())
 {
     builder.Services.AddHostedService<BackgroundListeningService>();

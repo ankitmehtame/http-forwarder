@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace http_forwarder_app.Controllers;
@@ -14,10 +15,14 @@ public class PingController : ControllerBase
     }
 
     [HttpPost]
-    public Task<Pong> PongAsync(Ping? ping)
+    public Task<IActionResult> PongAsync(Ping? ping)
     {
-        if (ping == null) return Task.FromResult(new Pong("Pong"));
-        return Task.FromResult(new Pong(ping.Message));
+        if (ping == null) return Task.FromResult<IActionResult>(Ok(new Pong("Pong")));
+        if (string.Equals(ping.Message, "fail", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult<IActionResult>(StatusCode(StatusCodes.Status503ServiceUnavailable, "Service temporarily unavailable"));
+        }
+        return Task.FromResult<IActionResult>(Ok(new Pong(ping.Message)));
     }
 
     public record class Pong(string Message);
