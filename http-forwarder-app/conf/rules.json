@@ -51,6 +51,20 @@
     },
     {
         "method": "POST",
+        "event": "ping-request",
+        "targetUrl": "/api/ping",
+        "hasContent": true,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "tags": [
+            "local",
+            "home",
+            "cloud"
+        ]
+    },
+    {
+        "method": "POST",
         "event": "ping-fail",
         "targetUrl": "/api/ping",
         "content": "{\"message\": \"FAIL\"}",

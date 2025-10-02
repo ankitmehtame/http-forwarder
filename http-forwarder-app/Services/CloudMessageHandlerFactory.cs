@@ -1,4 +1,5 @@
 using System.Threading;
+using http_forwarder_app.Models;
 using Microsoft.Extensions.Logging;
 
 namespace http_forwarder_app.Services;
@@ -6,10 +7,10 @@ namespace http_forwarder_app.Services;
 public class CloudMessageHandlerFactory
 {
     private readonly ILogger<CloudMessageHandler> _logger;
-    private readonly ForwardingService _forwardingService;
+    private readonly IForwardingService _forwardingService;
     private readonly RemoteRulePublishingService _remoteRulePublishingService;
 
-    public CloudMessageHandlerFactory(ILogger<CloudMessageHandler> logger, ForwardingService forwardingService, RemoteRulePublishingService remoteRulePublishingService)
+    public CloudMessageHandlerFactory(ILogger<CloudMessageHandler> logger, IForwardingService forwardingService, RemoteRulePublishingService remoteRulePublishingService)
     {
         _logger = logger;
         _forwardingService = forwardingService;

@@ -14,13 +14,13 @@ namespace http_forwarder_app.Services;
 public class CloudMessageHandler
 {
     private readonly ILogger<CloudMessageHandler> _logger;
-    private readonly ForwardingService _forwardingService;
+    private readonly IForwardingService _forwardingService;
     private readonly RemoteRulePublishingService _remoteRulePublishingService;
     private readonly HashSet<string> _allowedMethods = [HttpMethods.Post, HttpMethods.Put];
 
     public bool CanForwardToTopic { get; init; }
 
-    public CloudMessageHandler(ILogger<CloudMessageHandler> logger, ForwardingService forwardingService, RemoteRulePublishingService remoteRulePublishingService, bool canForwardToTopic, CancellationToken cancellationToken)
+    public CloudMessageHandler(ILogger<CloudMessageHandler> logger, IForwardingService forwardingService, RemoteRulePublishingService remoteRulePublishingService, bool canForwardToTopic, CancellationToken cancellationToken)
     {
         _logger = logger;
         _forwardingService = forwardingService;
