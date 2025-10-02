@@ -107,7 +107,7 @@ public class ForwardingService : IForwardingService
 
     private static string GetValidTargetUrl(ForwardingRule rule, string? requestHostUrl)
     {
-        if (rule.TargetUrl != null && !rule.TargetUrl.StartsWith("http", System.StringComparison.Ordinal))
+        if (rule.TargetUrl != null && !rule.TargetUrl.StartsWith("http", StringComparison.Ordinal))
         {
             return $"{requestHostUrl}{rule.TargetUrl}";
         }

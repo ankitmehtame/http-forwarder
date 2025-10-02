@@ -6,6 +6,7 @@ using System.Threading;
 using Microsoft.Extensions.Configuration;
 using http_forwarder_app.Models;
 using http_forwarder_app.Core;
+using Google.Protobuf.WellKnownTypes;
 
 namespace http_forwarder_app.Services;
 
@@ -16,7 +17,12 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
 
     public FailedRequestStorage(IConfiguration configuration)
     {
-        _storageFile = configuration["RetryStorage:FilePath"] ?? "failed_requests.json";
+        var storageDir = configuration.GetStorageDirPath() ?? throw new ArgumentNullException("Storage dir path cannot be null. Please set it at RetryStorage:DirPath");
+        if (!Directory.Exists(storageDir))
+        {
+            Directory.CreateDirectory(storageDir);
+        }
+        _storageFile = configuration.GetStorageFilePath();
     }
 
     public void Store(FailedRequest request)
@@ -25,7 +31,24 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
         try
         {
             var requests = Load();
-            requests.Add(request);
+            var index = requests.FindIndex(r => r.Id == request.Id);
+            if (index >= 0)
+            {
+                requests[index] = request;
+                var lastIndex = index;
+                do
+                {
+                    lastIndex = requests.FindLastIndex(r => r.Id == request.Id);
+                    if (lastIndex > index)
+                    {
+                        requests.RemoveAt(lastIndex);
+                    }
+                } while (lastIndex > index);
+            }
+            else
+            {
+                requests.Add(request);
+            }
             File.WriteAllText(_storageFile, JsonUtils.Serialize(requests, true));
         }
         finally
@@ -77,7 +100,12 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
 
     private List<FailedRequest> Load()
     {
-        if (!File.Exists(_storageFile)) return new();
+        if (!File.Exists(_storageFile))
+        {
+            var newContent = new List<FailedRequest>();
+            File.WriteAllText(_storageFile, JsonUtils.Serialize(newContent, true));
+            return newContent;
+        }
         var content = File.ReadAllText(_storageFile);
         return JsonUtils.Deserialize<List<FailedRequest>>(content) ?? new();
     }

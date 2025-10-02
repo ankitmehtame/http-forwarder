@@ -3,7 +3,6 @@ using System.IO;
 using Microsoft.Extensions.Configuration;
 using Moq;
 using http_forwarder_app.Models;
-using Microsoft.Extensions.Internal;
 using http_forwarder_app.Services;
 using Shouldly;
 
@@ -11,15 +10,19 @@ namespace http_forwarder_unit_tests;
 
 public class FailedRequestStorageTests : IDisposable
 {
+    private readonly string _storageDir;
     private readonly string _testFilePath;
     private readonly FailedRequestStorage _storage;
 
     public FailedRequestStorageTests()
     {
-        _testFilePath = Path.Combine(Path.GetTempPath(), $"test_failed_requests_{Guid.NewGuid()}.json");
         var configMock = new Mock<IConfiguration>();
-        configMock.Setup(x => x["RetryStorage:FilePath"]).Returns(_testFilePath);
+        var storageDir = Path.Combine(Path.GetTempPath(), $"http_forwarder_test_{Guid.NewGuid()}");
+        Directory.CreateDirectory(storageDir);
+        configMock.Setup(x => x["RetryStorage:DirPath"]).Returns(storageDir);
         _storage = new FailedRequestStorage(configMock.Object);
+        _storageDir = storageDir;
+        _testFilePath = Path.Combine(_storageDir, "storage.json");
     }
 
     [Fact]
@@ -91,6 +94,26 @@ public class FailedRequestStorageTests : IDisposable
         remaining[0].Id.ShouldBe(request2.Id);
     }
 
+    [Fact]
+    public void Updated_ShouldUpdateRequest()
+    {
+        // Arrange
+        var request1 = CreateTestRequest();
+        var request2 = CreateTestRequest();
+        _storage.Store(request1);
+        _storage.Store(request2);
+
+        // Act
+        var updatedRequest1 = request1 with { LastError = "Updated error", AttemptCount = request1.AttemptCount + 1, LastAttempt = DateTimeOffset.UtcNow, NextAttempt = DateTimeOffset.UtcNow.AddSeconds(30) };
+        _storage.Store(updatedRequest1);
+
+        // Assert
+        var remaining = _storage.GetAllRequests();
+        remaining.Count.ShouldBe(2);
+        remaining[0].Id.ShouldBe(request1.Id);
+        remaining[1].Id.ShouldBe(request2.Id);
+    }
+
     private static FailedRequest CreateTestRequest(DateTimeOffset? nextAttempt = null)
     {
         var rule = new ForwardingRule(
@@ -105,6 +128,7 @@ public class FailedRequestStorageTests : IDisposable
         return new FailedRequest(
             Id: Guid.NewGuid(),
             Rule: rule,
+            RequestHostUrl: "http://locahost:5000",
             FirstAttempt: DateTimeOffset.UtcNow,
             LastAttempt: DateTimeOffset.UtcNow,
             AttemptCount: 1,
@@ -115,9 +139,9 @@ public class FailedRequestStorageTests : IDisposable
 
     public void Dispose()
     {
-        if (File.Exists(_testFilePath))
+        if (Directory.Exists(_storageDir))
         {
-            File.Delete(_testFilePath);
+            Directory.Delete(_storageDir, true);
         }
     }
 }

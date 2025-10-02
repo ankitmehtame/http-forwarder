@@ -105,6 +105,7 @@ public class RetryBackgroundServiceTests
         return new FailedRequest(
             Id: Guid.NewGuid(),
             Rule: rule,
+            RequestHostUrl: "http://localhost:5000",
             FirstAttempt: _clockMock.Object.UtcNow.AddMinutes(-5),
             LastAttempt: _clockMock.Object.UtcNow.AddMinutes(-5),
             AttemptCount: 1,

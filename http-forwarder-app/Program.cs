@@ -10,6 +10,7 @@ using http_forwarder_app.Models.Services;
 using http_forwarder_app.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Internal;
@@ -22,7 +23,12 @@ AddEnvironmentVariables(newArgs, new Dictionary<string, string> { { "VERSION", V
 var builder = WebApplication.CreateBuilder(newArgs.ToArray());
 builder.Logging.AddConsole();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    // Insert raw body formatter at the beginning so [FromBody] object parameters bind even when Content-Type
+    // is missing/unexpected. This keeps backward compatibility for non-JSON clients.
+    options.InputFormatters.Insert(0, new http_forwarder_app.Formatters.RawRequestBodyFormatter());
+});
 builder.Services.AddHttpClient().AddHttpClient(Constants.HTTP_CLIENT_IGNORE_SSL_ERROR).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
 {
     ClientCertificateOptions = ClientCertificateOption.Manual,
@@ -87,6 +93,13 @@ logger.LogInformation("Info version is {InfoVersion}", VersionUtils.InfoVersion)
 var forwardingRulesReader = app.Services.GetRequiredService<ForwardingRulesReader>();
 forwardingRulesReader.Init();
 app.Run();
+
+// ensure request buffering middleware is available (optional if already present)
+app.Use(async (context, next) =>
+{
+    context.Request.EnableBuffering();
+    await next();
+});
 
 static void AddEnvironmentVariables(IList<string> existingArgsList, IDictionary<string, string> additionalEnvVars)
 {

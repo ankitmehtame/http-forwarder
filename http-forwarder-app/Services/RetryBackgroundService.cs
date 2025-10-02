@@ -37,7 +37,10 @@ public class RetryBackgroundService : BackgroundService
             {
                 try
                 {
-                    var result = await _forwardingService.ProcessPostEvent(request.Rule.Event, null, request.Rule.Content ?? string.Empty);
+                    var result = await _forwardingService.ProcessPostEvent(
+                        eventName: request.Rule.Event,
+                        requestHostUrl: request.RequestHostUrl,
+                        requestContent: request.Rule.Content ?? string.Empty);
 
                     await result.Match(
                         ruleResult =>
