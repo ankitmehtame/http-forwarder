@@ -19,7 +19,7 @@ public class BackgroundListeningService : IHostedService
     private const int _retryConnectionSeconds = 60;
     private readonly CancellationTokenSource _shutdownSource;
 
-    public BackgroundListeningService(ILogger<BackgroundListeningService> logger, CloudMessageHandlerFactory cloudMessageHandlerFactory, IConfiguration configuration, ForwardingService forwardingService, RemoteRulePublishingService remoteRulePublishingService)
+    public BackgroundListeningService(ILogger<BackgroundListeningService> logger, CloudMessageHandlerFactory cloudMessageHandlerFactory, IConfiguration configuration)
     {
         _logger = logger;
         _cloudMessageHandlerFactory = cloudMessageHandlerFactory;
