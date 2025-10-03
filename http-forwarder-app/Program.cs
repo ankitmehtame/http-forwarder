@@ -55,6 +55,7 @@ builder.Services.AddSingleton<RemoteRulePublishingService>();
 builder.Services.AddSingleton<IFailedRequestStorage, FailedRequestStorage>();
 builder.Services.AddHostedService<RetryBackgroundService>();
 builder.Services.AddSingleton<ISystemClock, SystemClock>();
+builder.Services.AddSingleton<ITimeDelayService, TimeDelayService>();
 
 if (builder.Configuration.IsListenerEnabled())
 {
