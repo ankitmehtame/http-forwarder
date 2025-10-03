@@ -14,13 +14,13 @@ namespace http_forwarder_app.Services;
 public class CloudMessageHandler
 {
     private readonly ILogger<CloudMessageHandler> _logger;
-    private readonly ForwardingService _forwardingService;
+    private readonly IForwardingService _forwardingService;
     private readonly RemoteRulePublishingService _remoteRulePublishingService;
     private readonly HashSet<string> _allowedMethods = [HttpMethods.Post, HttpMethods.Put];
 
     public bool CanForwardToTopic { get; init; }
 
-    public CloudMessageHandler(ILogger<CloudMessageHandler> logger, ForwardingService forwardingService, RemoteRulePublishingService remoteRulePublishingService, bool canForwardToTopic, CancellationToken cancellationToken)
+    public CloudMessageHandler(ILogger<CloudMessageHandler> logger, IForwardingService forwardingService, RemoteRulePublishingService remoteRulePublishingService, bool canForwardToTopic, CancellationToken cancellationToken)
     {
         _logger = logger;
         _forwardingService = forwardingService;
@@ -72,15 +72,16 @@ public class CloudMessageHandler
         return Task.FromResult(SubscriberClient.Reply.Nack);
     }
 
-    private async Task<SubscriberClient.Reply> ProcessResult(Task<OneOf<HttpResponseMessage, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>> processTask, ForwardingRequest forwardingRequest)
+    private async Task<SubscriberClient.Reply> ProcessResult(Task<OneOf<HttpResponseRuleResult, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>> processTask, ForwardingRequest forwardingRequest)
     {
         var result = await processTask;
 
         var ackResult = result.Match(
-            respMessage =>
+            respRuleResult =>
             {
                 string eventName = forwardingRequest.Event;
                 string requestMethod = forwardingRequest.Method;
+                var respMessage = respRuleResult.Response;
                 if (respMessage.IsSuccessStatusCode)
                 {
                     _logger.LogInformation("Success ({statusCode}) for event {eventName}, method {requestMethod}", respMessage.StatusCode, eventName, requestMethod);

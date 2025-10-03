@@ -1,12 +1,15 @@
-﻿using System.IO;
-using System.Net.Mime;
+﻿using System;
+using System.Globalization;
+using System.IO;
 using System.Threading.Tasks;
 using http_forwarder_app.Core;
 using http_forwarder_app.Models;
 using http_forwarder_app.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Logging;
 using OneOf;
 
@@ -17,12 +20,20 @@ namespace http_forwarder_app.Controllers
     [Route("api/[controller]")]
     [Route("forward")]
     [Route("api/forward")]
-    public class ForwardingController(ForwardingService forwardingService, RemoteRulePublishingService remoteRulePublishingService, IConfiguration configuration, ILogger<ForwardingController> logger) : ControllerBase
+    public class ForwardingController(
+        IForwardingService forwardingService,
+        RemoteRulePublishingService remoteRulePublishingService,
+        IFailedRequestStorage failedRequestStorage,
+        IConfiguration configuration,
+        ISystemClock clock,
+        ILogger<ForwardingController> logger) : ControllerBase
     {
-        private readonly ForwardingService _forwardingService = forwardingService;
+        private readonly IForwardingService _forwardingService = forwardingService;
+        private readonly IFailedRequestStorage _failedRequestStorage = failedRequestStorage;
         private readonly IConfiguration _configuration = configuration;
         private readonly ILogger<ForwardingController> _logger = logger;
         private readonly RemoteRulePublishingService _remoteRulePublishingService = remoteRulePublishingService;
+        private readonly ISystemClock _clock = clock;
 
         [HttpGet]
         public object Get()
@@ -37,7 +48,7 @@ namespace http_forwarder_app.Controllers
             string method = Request.Method;
             var result = await _forwardingService.ProcessGetEvent(eventName, GetHostUrl(Request));
             await result.Match(
-                async callResp => await HttpContext.CopyHttpResponse(callResp),
+                async ruleResult => await HttpContext.CopyHttpResponse(ruleResult.Response),
                 async noRuleFound =>
                 {
                     Response.StatusCode = StatusCodes.Status404NotFound;
@@ -52,21 +63,28 @@ namespace http_forwarder_app.Controllers
         }
 
         /// <summary>
-        /// Post method can take body also
+        /// Forward a POST request to configured endpoint
         /// </summary>
-        [HttpPost]
-        [Consumes(MediaTypeNames.Text.Plain, MediaTypeNames.Application.Json, MediaTypeNames.Image.Jpeg, MediaTypeNames.Application.Octet, MediaTypeNames.Application.Zip, MediaTypeNames.Image.Tiff, MediaTypeNames.Text.Html, MediaTypeNames.Text.RichText, MediaTypeNames.Text.Xml)]
-        [Route("{eventName}")]
-        public async Task Post(string eventName)
+        /// <param name="eventName">Event name to match forwarding rule</param>
+        /// <param name="body">Request body (shown in Swagger). Raw body will still be used for processing.</param>
+        [HttpPost("{eventName}")]
+        public async Task Post(string eventName, [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] object? body = null)
         {
             string method = Request.Method;
-
-            var requestContent = await GetBodyFromHttpRequest(Request) ?? string.Empty;
-
+            Request.EnableBuffering();
+            var requestContent = await ReadRequestBody(Request);
             var result = await _forwardingService.ProcessPostEvent(eventName, GetHostUrl(Request), requestContent);
 
             await result.Match(
-                async callResp => await HttpContext.CopyHttpResponse(callResp),
+                async ruleResult =>
+                {
+                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.IsRetryable)
+                    {
+                        await HandleFailedRequest(ruleResult.Rule, requestContent, await ruleResult.Response.Content.ReadAsStringAsync());
+                        return;
+                    }
+                    await HttpContext.CopyHttpResponse(ruleResult.Response);
+                },
                 async noRuleFound =>
                 {
                     Response.StatusCode = StatusCodes.Status404NotFound;
@@ -85,20 +103,26 @@ namespace http_forwarder_app.Controllers
         }
 
         /// <summary>
-        /// Put method can take body also
+        /// Forward a PUT request to configured endpoint
         /// </summary>
-        [HttpPut]
-        [Route("{eventName}")]
-        public async Task Put(string eventName)
+        [HttpPut("{eventName}")]
+        public async Task Put(string eventName, [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] object? body = null)
         {
             string method = Request.Method;
-
-            var requestContent = await GetBodyFromHttpRequest(Request) ?? string.Empty;
-
+            Request.EnableBuffering();
+            var requestContent = await ReadRequestBody(Request);
             var result = await _forwardingService.ProcessPutEvent(eventName, GetHostUrl(Request), requestContent);
 
             await result.Match(
-                async callResp => await HttpContext.CopyHttpResponse(callResp),
+                async ruleResult =>
+                {
+                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.IsRetryable)
+                    {
+                        await HandleFailedRequest(ruleResult.Rule, requestContent, await ruleResult.Response.Content.ReadAsStringAsync());
+                        return;
+                    }
+                    await HttpContext.CopyHttpResponse(ruleResult.Response);
+                },
                 async noRuleFound =>
                 {
                     Response.StatusCode = StatusCodes.Status404NotFound;
@@ -116,15 +140,26 @@ namespace http_forwarder_app.Controllers
             );
         }
 
-        [HttpDelete]
-        [Route("{eventName}")]
-        public async Task Delete(string eventName)
+        /// <summary>
+        /// Forward a DELETE request to configured endpoint
+        /// </summary>
+        [HttpDelete("{eventName}")]
+        public async Task Delete(string eventName, [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] object? body = null)
         {
             string method = Request.Method;
-
+            Request.EnableBuffering();
+            var requestContent = await ReadRequestBody(Request);
             var result = await _forwardingService.ProcessDeleteEvent(eventName, GetHostUrl(Request));
             await result.Match(
-                async callResp => await HttpContext.CopyHttpResponse(callResp),
+                async ruleResult =>
+                {
+                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.IsRetryable)
+                    {
+                        await HandleFailedRequest(ruleResult.Rule, requestContent, await ruleResult.Response.Content.ReadAsStringAsync());
+                        return;
+                    }
+                    await HttpContext.CopyHttpResponse(ruleResult.Response);
+                },
                 async noRuleFound =>
                 {
                     Response.StatusCode = StatusCodes.Status404NotFound;
@@ -163,20 +198,42 @@ namespace http_forwarder_app.Controllers
             );
         }
 
-        private static async Task<string?> GetBodyFromHttpRequest(HttpRequest request)
+        private async Task HandleFailedRequest(ForwardingRule rule, string? content, string error)
         {
-            var bodyStream = request?.Body;
-            if (bodyStream != null)
-            {
-                TextReader tr = new StreamReader(bodyStream);
-                return await tr.ReadToEndAsync();
-            }
-            return null;
+            var creationTime = _clock.UtcNow;
+            var failedRequest = new FailedRequest(
+                Id: Guid.NewGuid(),
+                Rule: rule with { Content = content },
+                RequestHostUrl: GetHostUrl(Request),
+                FirstAttempt: creationTime,
+                LastAttempt: creationTime,
+                AttemptCount: 1,
+                NextAttempt: creationTime.Add(RetryBackgroundService.RetryIntervalMin),
+                LastError: error
+            );
+
+            _logger.LogInformation("Adding request {requestId} with event {eventName} to storage to be executed at {attemptTime}",
+                failedRequest.Id,
+                failedRequest.Rule.Event,
+                failedRequest.NextAttempt);
+            _failedRequestStorage.Store(failedRequest);
+            Response.StatusCode = StatusCodes.Status202Accepted;
+            await Response.WriteAsync(string.Format(CultureInfo.InvariantCulture, "Request accepted for retry - {0}", failedRequest.Id));
         }
 
         private static string GetHostUrl(HttpRequest request)
         {
             return $"{request.Scheme}://{request.Host}";
+        }
+
+        // helper to read the raw body; leaves stream position reset for other readers
+        private static async Task<string> ReadRequestBody(HttpRequest request)
+        {
+            request.Body.Position = 0;
+            using var reader = new StreamReader(request.Body, leaveOpen: true);
+            var content = await reader.ReadToEndAsync().ConfigureAwait(false);
+            request.Body.Position = 0;
+            return content;
         }
     }
 }

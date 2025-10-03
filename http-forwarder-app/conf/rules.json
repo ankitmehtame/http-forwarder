@@ -18,6 +18,7 @@
             "Content-Type": "application/json"
         },
         "hasContent": false,
+        "isRetryable": false,
         "tags": [
             "local",
             "home",
@@ -43,6 +44,38 @@
             "Content-Type": "application/json"
         },
         "hasContent": false,
+        "isRetryable": false,
+        "tags": [
+            "local",
+            "home",
+            "cloud"
+        ]
+    },
+    {
+        "method": "POST",
+        "event": "ping-request",
+        "targetUrl": "/api/ping",
+        "hasContent": true,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "isRetryable": false,
+        "tags": [
+            "local",
+            "home",
+            "cloud"
+        ]
+    },
+    {
+        "method": "POST",
+        "event": "ping-fail",
+        "targetUrl": "/api/ping",
+        "content": "{\"message\": \"FAIL\"}",
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "hasContent": false,
+        "isRetryable": true,
         "tags": [
             "local",
             "home",
@@ -58,6 +91,7 @@
             "Content-Type": "application/json"
         },
         "hasContent": false,
+        "isRetryable": false,
         "tags": [
             "cloud"
         ]

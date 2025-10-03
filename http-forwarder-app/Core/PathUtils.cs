@@ -16,11 +16,29 @@ namespace http_forwarder_app.Core
             return realPath;
         }
 
+        public static string GetValidStorageDirPath(this IConfiguration configuration)
+        {
+            var appRoot = configuration.GetAppRoot();
+            var pathsForStorage = new[] { configuration.GetConfiguredStoragePath(), Path.Combine(appRoot, $"storage"), Path.Combine(appRoot, @".\..\storage") }
+                .Where(p => !string.IsNullOrEmpty(p))
+                .ToArray()!;
+            var realPath = pathsForStorage.FirstOrDefault(Directory.Exists) ?? pathsForStorage.First();
+            return realPath;
+        }
+
         public static string GetConfFilePath(this IConfiguration configuration, string fileName)
         {
             var pathForConf = configuration.GetConfDirPath();
-            var possiblePath = Path.Combine(pathForConf, fileName);
-            var filePath = GetFilePath(possiblePath) ?? possiblePath;
+            var filePath = GetFilePath(Path.Combine(pathForConf, fileName));
+            filePath ??= Path.Combine(pathForConf, fileName);
+            return filePath;
+        }
+
+        public static string GetStorageFilePath(this IConfiguration configuration)
+        {
+            var pathForConf = configuration.GetValidStorageDirPath();
+            var filePath = GetFilePath(Path.Combine(pathForConf, "storage.json"));
+            filePath ??= Path.Combine(pathForConf, "storage.json");
             return filePath;
         }
 
