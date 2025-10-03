@@ -1,0 +1,22 @@
+name: Cleanup GHCR Images
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 1 * *' # Runs at 02:00 on the 1st day of every month
+
+jobs:
+  cleanup:
+    name: Cleanup old container images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Delete old container images
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: 'http-forwarder-app'
+          package-type: 'container'
+          min-versions-to-keep: 5
