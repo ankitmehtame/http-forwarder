@@ -7,15 +7,19 @@ on:
 
 jobs:
   cleanup:
+    name: Cleanup old container images
     runs-on: ubuntu-latest
-    name: Delete old test images
+    permissions:
+      contents: read
+      packages: write
+      
     steps:
-      - uses: snok/container-retention-policy@v3.0.0
+      - name: Apply container retention policy
+        uses: snok/container-retention-policy@v3.0.0
         with:
-          account: ${{ github.repository_owner }}
+          account: user
           token: ${{ secrets.GITHUB_TOKEN }}
-          image-names: "http-forwarder-app"
-          # image-tags: "test* dev*"  # target any image that has a tag starting with the word test or dev
-          cut-off: 3m
-          dry-run: true 
+          image-names: http-forwarder-app
+          image-tags: "!latest"
+          cut-off: 90d
           keep-n-most-recent: 10
