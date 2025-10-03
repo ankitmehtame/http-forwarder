@@ -54,4 +54,14 @@ public static class ConfigurationExtensions
         return configuration.GetValue<string?>(Constants.GENERIC_TOPIC_ALLOWED_EVENTS);
     }
 
+    public static string? GetConfiguredStoragePath(this IConfiguration configuration)
+    {
+        return configuration.GetValue<string?>(Constants.STORAGE_DIR_PATH, null);
+    }
+
+    public static int GetRetryMaxConcurrency(this IConfiguration configuration)
+    {
+        return configuration.GetValue<int>(Constants.RETRY_POLICY_MAX_CONCURRENCY, 4);
+    }
+
 }

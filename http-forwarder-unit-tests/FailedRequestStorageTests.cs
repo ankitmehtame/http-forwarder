@@ -7,6 +7,7 @@ using http_forwarder_app.Services;
 using Shouldly;
 using Microsoft.Extensions.Internal;
 using Microsoft.AspNetCore.Mvc.Diagnostics;
+using http_forwarder_app;
 
 namespace http_forwarder_unit_tests;
 
@@ -21,14 +22,19 @@ public class FailedRequestStorageTests : IDisposable
     public FailedRequestStorageTests()
     {
         var configMock = new Mock<IConfiguration>();
-        var storageDir = Path.Combine(Path.GetTempPath(), $"http_forwarder_test_{Guid.NewGuid()}");
+        _storageDir = Path.Combine(Path.GetTempPath(), $"http_forwarder_test_{Guid.NewGuid()}");
+        var storageDir = _storageDir;
         Directory.CreateDirectory(storageDir);
-        configMock.Setup(x => x["RetryStorage:DirPath"]).Returns(storageDir);
+
+        var configSectionMock = new Mock<IConfigurationSection>();
+        configSectionMock.Setup(x => x.Value).Returns(storageDir);
+        configMock.Setup(x => x.GetSection(It.Is<string>(s => s.EndsWith("GetAppRoot")))).Returns(configSectionMock.Object);
+        configMock.Setup(x => x.GetSection(Constants.STORAGE_DIR_PATH)).Returns(configSectionMock.Object);
+
         var mockClock = new Mock<ISystemClock>();
         _startTime = DateTimeOffset.UtcNow;
         mockClock.Setup(x => x.UtcNow).Returns(_startTime);
         _storage = new FailedRequestStorage(configMock.Object, mockClock.Object);
-        _storageDir = storageDir;
         _testFilePath = Path.Combine(_storageDir, "storage.json");
     }
 

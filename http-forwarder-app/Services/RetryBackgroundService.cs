@@ -8,6 +8,7 @@ using Microsoft.Extensions.Internal;
 using http_forwarder_app.Models;
 using http_forwarder_app.Extensions;
 using http_forwarder_app.Core;
+using Microsoft.Extensions.Configuration;
 
 namespace http_forwarder_app.Services;
 
@@ -20,7 +21,10 @@ public class RetryBackgroundService : BackgroundService
     private readonly ILogger<RetryBackgroundService> _logger;
     internal static readonly TimeSpan RetryIntervalMin = TimeSpan.FromSeconds(30);
     internal static readonly TimeSpan RetryIntervalMax = TimeSpan.FromHours(1);
+    private readonly int _maxConcurrency;
     internal static readonly TimeSpan RetryExpiry = TimeSpan.FromHours(24);
+
+    private CancellationTokenSource _waitTokenSource;
 
 
     public RetryBackgroundService(
@@ -28,13 +32,16 @@ public class RetryBackgroundService : BackgroundService
         IForwardingService forwardingService,
         ISystemClock clock,
         ITimeDelayService timeDelayService,
-        ILogger<RetryBackgroundService> logger)
+        ILogger<RetryBackgroundService> logger,
+        IConfiguration configuration)
     {
         _storage = storage;
         _timeDelayService = timeDelayService;
         _forwardingService = forwardingService;
         _clock = clock;
         _logger = logger;
+        _maxConcurrency = configuration.GetRetryMaxConcurrency();
+        _waitTokenSource = new CancellationTokenSource();
     }
 
     private enum ProcessStatus
@@ -135,25 +142,46 @@ public class RetryBackgroundService : BackgroundService
     protected async Task ProcessPendingAsync(DateTimeOffset asOf, CancellationToken stoppingToken)
     {
         var pendingNow = _storage.GetRequestsDue(asOf);
-        foreach (var request in pendingNow)
+        if (pendingNow.Any())
         {
-            if (stoppingToken.IsCancellationRequested) break;
-
-            await ProcessRequestAsync(request);
+            var parallelOptions = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = _maxConcurrency,
+                CancellationToken = stoppingToken
+            };
+            await Parallel.ForEachAsync(pendingNow, parallelOptions, async (request, token) =>
+            {
+                await ProcessRequestAsync(request);
+            });
         }
+    }
+
+    private void OnStorageUpdated(object? sender, EventArgs e)
+    {
+        _waitTokenSource.Cancel();
     }
 
     private async Task RunAsync(CancellationToken stoppingToken)
     {
-        var maxWait = RetryIntervalMin;
+        var maxWait = RetryIntervalMax;
         var nextAttempt = DateTimeOffset.MaxValue;
         int currentHash = 0;
+        _storage.StorageUpdated -= OnStorageUpdated;
+        _storage.StorageUpdated += OnStorageUpdated;
+
         while (!stoppingToken.IsCancellationRequested)
         {
             var prevHash = currentHash;
-            currentHash = _storage.StorageHash;
+
+            var waitTokenSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            var prevWaitTokenSource = Interlocked.Exchange(ref _waitTokenSource, waitTokenSource);
+            var prevWaitCancellationRequested = prevWaitTokenSource.IsCancellationRequested;
+            prevWaitTokenSource?.Dispose();
+
             var executionTime = _clock.UtcNow;
-            if (currentHash != prevHash || nextAttempt <= executionTime)
+            currentHash = _storage.StorageHash;
+
+            if (currentHash != prevHash || nextAttempt <= executionTime || waitTokenSource.IsCancellationRequested || prevWaitCancellationRequested)
             {
                 // Storage has changed or next attempt is due, process any requests that are due now
                 await ProcessPendingAsync(executionTime, stoppingToken);
@@ -187,9 +215,11 @@ public class RetryBackgroundService : BackgroundService
             var delay = waitUntil.HasValue
                 ? (waitUntil.Value < maxWait ? waitUntil.Value : maxWait)
                 : maxWait;
-            var delayTask = _timeDelayService.DelayAsync(delay, stoppingToken);
+
+            var delayTask = _timeDelayService.DelayAsync(delay, waitTokenSource.Token);
             await delayTask.IgnoreCancellation();
         }
+        _storage.StorageUpdated -= OnStorageUpdated;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

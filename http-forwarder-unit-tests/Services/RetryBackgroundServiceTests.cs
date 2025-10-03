@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -8,6 +9,7 @@ using http_forwarder_app.Models;
 using http_forwarder_app.Services;
 using OneOf;
 using Shouldly;
+using http_forwarder_app;
 
 namespace http_forwarder_unit_tests;
 
@@ -19,6 +21,7 @@ public class RetryBackgroundServiceTests
     private readonly Mock<ITimeDelayService> _delayServiceMock;
     private readonly Mock<ILogger<RetryBackgroundService>> _loggerMock;
     private readonly TestableRetryBackgroundService _service;
+    private readonly Mock<IConfiguration> _configMock;
     private readonly CancellationTokenSource _cts;
     private readonly DateTimeOffset _startTime;
 
@@ -30,18 +33,23 @@ public class RetryBackgroundServiceTests
         _clockMock = new Mock<ISystemClock>();
         _delayServiceMock = new Mock<ITimeDelayService>();
         _loggerMock = new Mock<ILogger<RetryBackgroundService>>();
+        _configMock = new Mock<IConfiguration>(MockBehavior.Loose);
         _cts = new CancellationTokenSource();
         _startTime = DateTimeOffset.UtcNow;
 
-
         _clockMock.Setup(x => x.UtcNow).Returns(_startTime);
+        var configSectionMock = new Mock<IConfigurationSection>(MockBehavior.Loose);
+        configSectionMock.Setup(x => x.Value).Returns("1");
+        _configMock.Setup(x => x.GetSection(Constants.RETRY_POLICY_MAX_CONCURRENCY))
+            .Returns(configSectionMock.Object);
 
         _service = new TestableRetryBackgroundService(
             _storageMock.Object,
             _forwardingServiceMock.Object,
             _clockMock.Object,
             _delayServiceMock.Object,
-            _loggerMock.Object);
+            _loggerMock.Object,
+            _configMock.Object);
     }
 
     [Fact]
@@ -137,7 +145,7 @@ public class RetryBackgroundServiceTests
         _storageMock.Setup(s => s.GetRequestsDue(It.IsAny<DateTimeOffset>())).Returns([]);
         _storageMock.Setup(s => s.StorageHash).Returns(1);
 
-        _delayServiceMock.Setup(d => d.DelayAsync(It.IsAny<TimeSpan>(), _cts.Token))
+        _delayServiceMock.Setup(d => d.DelayAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .Callback(() => _cts.Cancel()) // Cancel on first delay to exit loop
             .Returns(Task.CompletedTask);
 
@@ -149,7 +157,7 @@ public class RetryBackgroundServiceTests
         _storageMock.Verify(s => s.GetAllRequests(), Times.Once);
         _storageMock.Verify(x => x.Remove(It.IsAny<Guid>()), Times.Never);
         _storageMock.Verify(x => x.Store(It.IsAny<FailedRequest>()), Times.Never);
-        _delayServiceMock.Verify(d => d.DelayAsync(TimeSpan.FromSeconds(30), _cts.Token), Times.Once);
+        _delayServiceMock.Verify(d => d.DelayAsync(TimeSpan.FromHours(1), It.IsAny<CancellationToken>()), Times.Once);
         _forwardingServiceMock.Verify(f => f.ProcessPostEvent(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
@@ -166,7 +174,7 @@ public class RetryBackgroundServiceTests
         _forwardingServiceMock.Setup(f => f.ProcessPostEvent(request.Rule.Event, request.RequestHostUrl, request.Rule.Content!))
             .ReturnsAsync(successResult);
 
-        _delayServiceMock.Setup(d => d.DelayAsync(It.IsAny<TimeSpan>(), _cts.Token))
+        _delayServiceMock.Setup(d => d.DelayAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .Callback(() => _cts.Cancel())
             .Returns(Task.CompletedTask);
 
@@ -177,7 +185,7 @@ public class RetryBackgroundServiceTests
         _storageMock.Verify(s => s.GetRequestsDue(It.IsAny<DateTimeOffset>()), Times.Once);
         _forwardingServiceMock.Verify(f => f.ProcessPostEvent(request.Rule.Event, request.RequestHostUrl, request.Rule.Content!), Times.Once);
         _storageMock.Verify(s => s.Remove(request.Id), Times.Once);
-        _delayServiceMock.Verify(d => d.DelayAsync(TimeSpan.FromSeconds(30), _cts.Token), Times.Once);
+        _delayServiceMock.Verify(d => d.DelayAsync(TimeSpan.FromHours(1), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -196,8 +204,8 @@ public class RetryBackgroundServiceTests
 
         _storageMock.Setup(s => s.GetRequestsDue(It.IsAny<DateTimeOffset>())).Returns([]);
 
-        int delayCallCount = 0;
-        _delayServiceMock.Setup(d => d.DelayAsync(It.IsAny<TimeSpan>(), _cts.Token))
+        var delayCallCount = 0;
+        _delayServiceMock.Setup(d => d.DelayAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .Callback<TimeSpan, CancellationToken>((delay, token) =>
             {
                 delayCallCount++;
@@ -219,7 +227,7 @@ public class RetryBackgroundServiceTests
         // Assert
         _storageMock.Verify(s => s.GetRequestsDue(It.IsAny<DateTimeOffset>()), Times.Exactly(2));
         _storageMock.Verify(s => s.GetAllRequests(), Times.Exactly(2));
-        _delayServiceMock.Verify(d => d.DelayAsync(TimeSpan.FromSeconds(30), _cts.Token), Times.Exactly(2));
+        _delayServiceMock.Verify(d => d.DelayAsync(TimeSpan.FromHours(1), It.IsAny<CancellationToken>()), Times.Once);
         delayCallCount.ShouldBe(2);
     }
 
@@ -252,8 +260,9 @@ public class RetryBackgroundServiceTests
             IForwardingService forwardingService,
             ISystemClock clock,
             ITimeDelayService timeDelayService,
-            ILogger<RetryBackgroundService> logger)
-            : base(storage, forwardingService, clock, timeDelayService, logger)
+            ILogger<RetryBackgroundService> logger,
+            IConfiguration configuration)
+            : base(storage, forwardingService, clock, timeDelayService, logger, configuration)
         {
         }
         public new Task ExecuteAsync(CancellationToken stoppingToken) => base.ExecuteAsync(stoppingToken);

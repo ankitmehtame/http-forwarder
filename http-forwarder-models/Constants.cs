@@ -21,4 +21,8 @@ public static class Constants
     public const string TOPIC_ID_PREFIX = "PUBSUB_TOPIC_ID_";
 
     public const string GENERIC_TOPIC_ALLOWED_EVENTS = "ALLOWED_EVENTS";
+
+    public const string STORAGE_DIR_PATH = "STORAGE_DIR_PATH";
+
+    public const string RETRY_POLICY_MAX_CONCURRENCY = "RETRY_POLICY_MAX_CONCURRENCY";
 }

@@ -21,7 +21,7 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
     public FailedRequestStorage(IConfiguration configuration, ISystemClock clock)
     {
         _clock = clock;
-        var storageDir = configuration.GetStorageDirPath() ?? throw new ArgumentNullException("Storage dir path cannot be null. Please set it at RetryStorage:DirPath");
+        var storageDir = configuration.GetValidStorageDirPath() ?? throw new ArgumentNullException("Storage dir path cannot be null. Please set env variable " + Constants.STORAGE_DIR_PATH);
         if (!Directory.Exists(storageDir))
         {
             Directory.CreateDirectory(storageDir);
@@ -30,6 +30,7 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
     }
 
     public int StorageHash => _storageHash;
+    public event EventHandler StorageUpdated = delegate { };
 
     public void Store(FailedRequest request)
     {
@@ -59,6 +60,7 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
             File.WriteAllText(_storageFile, newContent);
             var newHash = newContent.GetHashCode();
             _storageHash = newHash;
+            StorageUpdated(this, EventArgs.Empty);
         }
         finally
         {
@@ -103,6 +105,7 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
             File.WriteAllText(_storageFile, newContent);
             var newHash = newContent.GetHashCode();
             _storageHash = newHash;
+            StorageUpdated(this, EventArgs.Empty);
         }
         finally
         {
