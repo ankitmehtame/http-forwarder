@@ -7,20 +7,20 @@ on:
 
 jobs:
   cleanup:
-    name: Delete old test images
+    name: Cleanup old container images
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
       
     steps:
-      - name: Delete old container images
+      - name: Apply container retention policy
         uses: snok/container-retention-policy@v3.0.0
         with:
           account: ${{ github.repository_owner }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          image-names: "http-forwarder-app"
+          image-names: http-forwarder-app
           image-tags: "!latest"
-          cut-off: 3m
-          dry-run: true 
+          cut-off: 90d
           keep-n-most-recent: 10
+          dry-run: true
