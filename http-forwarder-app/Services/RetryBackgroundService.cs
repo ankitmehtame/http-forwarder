@@ -74,7 +74,7 @@ public class RetryBackgroundService : BackgroundService
                         _storage.Remove(request.Id);
                         return Task.FromResult(ProcessStatus.Success);
                     }
-                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.IsRetryable)
+                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.Retry.Allow)
                     {
                         return Task.FromResult(ProcessStatus.TryAgain);
                     }
@@ -126,7 +126,7 @@ public class RetryBackgroundService : BackgroundService
             NextAttempt = now.Add(request.AttemptCount.CalculateExponentialDelay(RetryIntervalMin, RetryIntervalMax))
         };
 
-        if (nextAttempt.NextAttempt > request.FirstAttempt.Add(RetryExpiry))
+        if (nextAttempt.NextAttempt > request.FirstAttempt.Add(GetValidExpiry(request.Rule.Retry)))
         {
             _logger.LogInformation("Removing request {requestId} with event {eventName} after {attempts} attempts from storage as it has expired", request.Id, request.Rule.Event, request.AttemptCount);
             _storage.Remove(request.Id);
@@ -225,5 +225,10 @@ public class RetryBackgroundService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await RunAsync(stoppingToken);
+    }
+
+    private static TimeSpan GetValidExpiry(RuleRetry retry)
+    {
+        return retry.Expiry > RetryExpiry ? RetryExpiry : retry.Expiry;
     }
 }

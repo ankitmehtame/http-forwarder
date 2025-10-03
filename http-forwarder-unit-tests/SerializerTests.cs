@@ -25,6 +25,44 @@ public class SerialzerTests
             "Content-Type": "application/json",
             "Accept": "*/*",
             "Accept-Encoding": "gzip, deflate, br"
+        },
+        "retry": {
+            "allow": true,
+            "expiry": "12:00:00"
+        }
+    }
+    """;
+
+    const string defaultRetryJson = """
+    {
+        "method": "POST",
+        "event": "dummy-event",
+        "hasContent": false,
+        "targetUrl": "https://example.com/api/dummy",
+        "content": "{ \"name\":\"dummy-name\", \"type\": \"A\", \"content\": \"1.2.3.4\"}",
+        "headers": {
+            "Content-Type": "application/json",
+            "Accept": "*/*",
+            "Accept-Encoding": "gzip, deflate, br"
+        },
+        "retry": {}
+    }
+    """;
+
+    const string retryExpiryJson = """
+    {
+        "method": "POST",
+        "event": "dummy-event",
+        "hasContent": false,
+        "targetUrl": "https://example.com/api/dummy",
+        "content": "{ \"name\":\"dummy-name\", \"type\": \"A\", \"content\": \"1.2.3.4\"}",
+        "headers": {
+            "Content-Type": "application/json",
+            "Accept": "*/*",
+            "Accept-Encoding": "gzip, deflate, br"
+        },
+        "retry": {
+            "expiry": "00:05:00"
         }
     }
     """;
@@ -39,6 +77,7 @@ public class SerialzerTests
         simplePost.TargetUrl.ShouldBe("http://dummy.restapiexample.com/api/v1/create");
         simplePost.HasContent.ShouldBeTrue();
         simplePost.Headers.ShouldBeEmpty();
+        simplePost.Retry.Allow.ShouldBeFalse();
     }
 
     [Fact]
@@ -55,6 +94,26 @@ public class SerialzerTests
         contentPost.Headers.ShouldContainKeyAndValue("Content-Type", "application/json");
         contentPost.Headers.ShouldContainKeyAndValue("Accept", "*/*");
         contentPost.Headers.ShouldContainKeyAndValue("Accept-Encoding", "gzip, deflate, br");
+        contentPost.Retry.Allow.ShouldBeTrue();
+        contentPost.Retry.Expiry.ShouldBe(new(hours: 12, minutes: 0, seconds: 0));
+    }
+
+    [Fact]
+    public void SerializesWithDefaultRetryJsonCorrectly()
+    {
+        var contentPost = JsonUtils.Deserialize<ForwardingRule>(defaultRetryJson);
+        contentPost.ShouldNotBeNull();
+        contentPost.Retry.Allow.ShouldBeTrue();
+        contentPost.Retry.Expiry.ShouldBe(new(hours: 23, minutes: 59, seconds: 59));
+    }
+
+    [Fact]
+    public void SerializesWithJustRetryExpiryJsonCorrectly()
+    {
+        var contentPost = JsonUtils.Deserialize<ForwardingRule>(retryExpiryJson);
+        contentPost.ShouldNotBeNull();
+        contentPost.Retry.Allow.ShouldBeTrue();
+        contentPost.Retry.Expiry.ShouldBe(new(hours: 0, minutes: 5, seconds: 0));
     }
 
     [Fact]

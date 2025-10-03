@@ -135,7 +135,7 @@ public class FailedRequestStorageTests : IDisposable
             TargetUrl: "http://test.com",
             HasContent: true,
             Content: "test-content",
-            IsRetryable: true
+            Retry: RuleRetry.AllowedDefault
         );
 
         return new FailedRequest(
@@ -151,7 +151,7 @@ public class FailedRequestStorageTests : IDisposable
     }
 
     public void Dispose()
-    {
+    {   
         if (Directory.Exists(_storageDir))
         {
             Directory.Delete(_storageDir, true);

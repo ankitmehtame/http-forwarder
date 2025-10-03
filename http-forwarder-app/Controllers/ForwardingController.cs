@@ -78,7 +78,7 @@ namespace http_forwarder_app.Controllers
             await result.Match(
                 async ruleResult =>
                 {
-                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.IsRetryable)
+                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.Retry.Allow)
                     {
                         await HandleFailedRequest(ruleResult.Rule, requestContent, await ruleResult.Response.Content.ReadAsStringAsync());
                         return;
@@ -116,7 +116,7 @@ namespace http_forwarder_app.Controllers
             await result.Match(
                 async ruleResult =>
                 {
-                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.IsRetryable)
+                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.Retry.Allow)
                     {
                         await HandleFailedRequest(ruleResult.Rule, requestContent, await ruleResult.Response.Content.ReadAsStringAsync());
                         return;
@@ -153,7 +153,7 @@ namespace http_forwarder_app.Controllers
             await result.Match(
                 async ruleResult =>
                 {
-                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.IsRetryable)
+                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.Retry.Allow)
                     {
                         await HandleFailedRequest(ruleResult.Rule, requestContent, await ruleResult.Response.Content.ReadAsStringAsync());
                         return;
