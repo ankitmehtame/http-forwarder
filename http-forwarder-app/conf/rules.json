@@ -18,7 +18,10 @@
             "Content-Type": "application/json"
         },
         "hasContent": false,
-        "isRetryable": false,
+        "retry": {
+            "allow": false,
+            "expiry": "23:59:59"
+        },
         "tags": [
             "local",
             "home",
@@ -44,7 +47,9 @@
             "Content-Type": "application/json"
         },
         "hasContent": false,
-        "isRetryable": false,
+        "retry": {
+            "allow": false
+        },
         "tags": [
             "local",
             "home",
@@ -59,7 +64,9 @@
         "headers": {
             "Content-Type": "application/json"
         },
-        "isRetryable": false,
+        "retry": {
+            "allow": false
+        },
         "tags": [
             "local",
             "home",
@@ -75,7 +82,10 @@
             "Content-Type": "application/json"
         },
         "hasContent": false,
-        "isRetryable": true,
+        "retry": {
+            "allow": true,
+            "expiry": "23:59:59"
+        },
         "tags": [
             "local",
             "home",
@@ -91,7 +101,9 @@
             "Content-Type": "application/json"
         },
         "hasContent": false,
-        "isRetryable": false,
+        "retry": {
+            "allow": false
+        },
         "tags": [
             "cloud"
         ]

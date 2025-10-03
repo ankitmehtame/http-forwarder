@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace http_forwarder_app.Models;
 
-public record class ForwardingRule(string Method, string Event, string TargetUrl, [DefaultValue(true)] bool HasContent = true, string? Content = null, bool IgnoreSslError = false, Dictionary<string, string>? Headers = default, HashSet<string>? Tags = default, [DefaultValue(false)] bool IsRetryable = false)
+public record class ForwardingRule(string Method, string Event, string TargetUrl, [DefaultValue(true)] bool HasContent = true, string? Content = null, bool IgnoreSslError = false, Dictionary<string, string>? Headers = default, HashSet<string>? Tags = default, RuleRetry Retry = default)
 {
     public Dictionary<string, string> Headers { get; init; } = Headers ?? [];
 
@@ -18,6 +18,8 @@ public record class ForwardingRule(string Method, string Event, string TargetUrl
 
     public bool HasTag(string tag) => Tags.Contains(tag);
 
+    public RuleRetry Retry { get; init; } = Retry ?? RuleRetry.DisabledDefault;
+
     public override string ToString()
     {
         var builder = new StringBuilder();
@@ -26,6 +28,7 @@ public record class ForwardingRule(string Method, string Event, string TargetUrl
         builder.Replace($", {nameof(__PrettyHeaders)} = ", $", {nameof(Headers)} = ");
         builder.Replace($", {nameof(Tags)} = System.Collections.Generic.HashSet`1[System.String]", string.Empty);
         builder.Replace($", {nameof(__PrettyTags)} = ", $", {nameof(Tags)} = ");
+        builder.Replace($", {nameof(Retry)} = {nameof(RuleRetry)} ", $", {nameof(Retry)} = ");
 
         return builder.ToString();
     }

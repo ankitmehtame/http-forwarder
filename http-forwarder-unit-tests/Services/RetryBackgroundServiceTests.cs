@@ -239,7 +239,7 @@ public class RetryBackgroundServiceTests
             TargetUrl: "http://test.com",
             HasContent: true,
             Content: "test-content",
-            IsRetryable: true);
+            Retry: RuleRetry.AllowedDefault);
 
         return new FailedRequest(
             Id: Guid.NewGuid(),

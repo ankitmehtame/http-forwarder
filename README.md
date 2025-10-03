@@ -79,7 +79,10 @@ storage folder is for temporary storage - up to 24 hours, after which any failed
             "Content-Type": "application/json"
         },
         "hasContent": false,
-        "isRetryable": false,
+        "retry": {
+            "allow": true,
+            "expiry": "23:59:59"
+        },
         "tags": [
             "local",
             "home",
@@ -88,6 +91,17 @@ storage folder is for temporary storage - up to 24 hours, after which any failed
     }
 ```
 Credit to https://httpbin.org for offering an internet based service to test REST functions.
+
+## Retry Mechanism for Failed Requests
+The application includes a robust retry mechanism for requests that fail due to server-side errors (i.e., HTTP 5xx status codes).
+
+Enabling Retries: To enable retries for a specific rule, add the `"retry": { }` object to your rule definition, as shown in the sample above. Default is false, if there is no retry section in the rule.
+
+How it Works: When a forwarded request fails with a server error, it is saved to the storage volume. A background service will automatically retry the request using an exponential backoff strategy.
+
+Expiry: Failed requests will be retried for up to 24 hours by default. You can customize this by setting the expiry property (e.g., "expiry": "12:00:00" for 12 hours), however it is limited to a max of 24 hours. If a request cannot be successfully forwarded within this period, it will be discarded.
+
+Success/Failure: If a retry attempt is successful, the request is removed from the queue. If it fails with a client error (HTTP 4xx), it is also removed, as these errors are not typically resolved by retrying.
 
 ## Notes and troubleshooting
 - Ensure the container/network can reach the private target (firewalls, VPNs, and Docker network settings can block access).
