@@ -17,7 +17,7 @@ jobs:
       - name: Apply container retention policy
         uses: snok/container-retention-policy@v3.0.0
         with:
-          account: ${{ github.repository_owner }}
+          account: user
           token: ${{ secrets.GITHUB_TOKEN }}
           image-names: http-forwarder-app
           image-tags: "!latest"
