@@ -7,16 +7,15 @@ on:
 
 jobs:
   cleanup:
-    name: Cleanup old container images
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
+    name: Delete old test images
     steps:
-      - name: Delete old container images
-        uses: actions/delete-package-versions@v5
+      - uses: snok/container-retention-policy@v3.0.0
         with:
-          package-name: 'http-forwarder-app'
-          package-type: 'container'
-          min-versions-to-keep: 5
+          account: snok
+          token: ${{ secrets.PAT }}
+          image-names: "http-forwarder-app"
+          # image-tags: "test* dev*"  # target any image that has a tag starting with the word test or dev
+          cut-off: 3m
+          dry-run: true
+          keep-n-most-recent: 10
