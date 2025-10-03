@@ -4,9 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Internal;
 using http_forwarder_app.Models;
 using http_forwarder_app.Core;
-using Google.Protobuf.WellKnownTypes;
 
 namespace http_forwarder_app.Services;
 
@@ -14,9 +14,13 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
 {
     private readonly string _storageFile;
     private readonly ReaderWriterLockSlim _lock = new();
+    private readonly ISystemClock _clock;
 
-    public FailedRequestStorage(IConfiguration configuration)
+    private int _storageHash = 0;
+
+    public FailedRequestStorage(IConfiguration configuration, ISystemClock clock)
     {
+        _clock = clock;
         var storageDir = configuration.GetStorageDirPath() ?? throw new ArgumentNullException("Storage dir path cannot be null. Please set it at RetryStorage:DirPath");
         if (!Directory.Exists(storageDir))
         {
@@ -24,6 +28,8 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
         }
         _storageFile = configuration.GetStorageFilePath();
     }
+
+    public int StorageHash => _storageHash;
 
     public void Store(FailedRequest request)
     {
@@ -49,7 +55,10 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
             {
                 requests.Add(request);
             }
-            File.WriteAllText(_storageFile, JsonUtils.Serialize(requests, true));
+            var newContent = JsonUtils.Serialize(requests, true);
+            File.WriteAllText(_storageFile, newContent);
+            var newHash = newContent.GetHashCode();
+            _storageHash = newHash;
         }
         finally
         {
@@ -57,12 +66,12 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
         }
     }
 
-    public List<FailedRequest> GetPendingRequests()
+    public List<FailedRequest> GetRequestsDue(DateTimeOffset? asOf = null)
     {
         _lock.EnterReadLock();
         try
         {
-            return Load().Where(r => r.NextAttempt <= DateTimeOffset.UtcNow).ToList();
+            return Load().Where(r => r.NextAttempt <= (asOf ?? _clock.UtcNow)).ToList();
         }
         finally
         {
@@ -90,7 +99,10 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
         {
             var requests = Load();
             requests.RemoveAll(r => r.Id == requestId);
-            File.WriteAllText(_storageFile, JsonUtils.Serialize(requests, true));
+            var newContent = JsonUtils.Serialize(requests, true);
+            File.WriteAllText(_storageFile, newContent);
+            var newHash = newContent.GetHashCode();
+            _storageHash = newHash;
         }
         finally
         {
@@ -107,6 +119,7 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
             return newContent;
         }
         var content = File.ReadAllText(_storageFile);
+        _storageHash = content.GetHashCode();
         return JsonUtils.Deserialize<List<FailedRequest>>(content) ?? new();
     }
 

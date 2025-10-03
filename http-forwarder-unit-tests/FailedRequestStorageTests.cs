@@ -5,6 +5,8 @@ using Moq;
 using http_forwarder_app.Models;
 using http_forwarder_app.Services;
 using Shouldly;
+using Microsoft.Extensions.Internal;
+using Microsoft.AspNetCore.Mvc.Diagnostics;
 
 namespace http_forwarder_unit_tests;
 
@@ -13,6 +15,8 @@ public class FailedRequestStorageTests : IDisposable
     private readonly string _storageDir;
     private readonly string _testFilePath;
     private readonly FailedRequestStorage _storage;
+    private readonly DateTimeOffset _startTime;
+
 
     public FailedRequestStorageTests()
     {
@@ -20,7 +24,10 @@ public class FailedRequestStorageTests : IDisposable
         var storageDir = Path.Combine(Path.GetTempPath(), $"http_forwarder_test_{Guid.NewGuid()}");
         Directory.CreateDirectory(storageDir);
         configMock.Setup(x => x["RetryStorage:DirPath"]).Returns(storageDir);
-        _storage = new FailedRequestStorage(configMock.Object);
+        var mockClock = new Mock<ISystemClock>();
+        _startTime = DateTimeOffset.UtcNow;
+        mockClock.Setup(x => x.UtcNow).Returns(_startTime);
+        _storage = new FailedRequestStorage(configMock.Object, mockClock.Object);
         _storageDir = storageDir;
         _testFilePath = Path.Combine(_storageDir, "storage.json");
     }
@@ -62,13 +69,13 @@ public class FailedRequestStorageTests : IDisposable
     public void GetPendingRequests_ShouldReturnRequestsDueForRetry()
     {
         // Arrange
-        var pastRequest = CreateTestRequest(DateTimeOffset.UtcNow.AddMinutes(-5));
-        var futureRequest = CreateTestRequest(DateTimeOffset.UtcNow.AddMinutes(5));
+        var pastRequest = CreateTestRequest(_startTime.AddMinutes(-5));
+        var futureRequest = CreateTestRequest(_startTime.AddMinutes(5));
         _storage.Store(pastRequest);
         _storage.Store(futureRequest);
 
         // Act
-        var pending = _storage.GetPendingRequests();
+        var pending = _storage.GetRequestsDue(_startTime);
 
         // Assert
         pending.Count.ShouldBe(1);
@@ -79,7 +86,7 @@ public class FailedRequestStorageTests : IDisposable
     public void Remove_ShouldDeleteRequest()
     {
         // Arrange
-        var pastTime = DateTimeOffset.UtcNow.AddMinutes(-5);
+        var pastTime = _startTime.AddMinutes(-5);
         var request1 = CreateTestRequest(pastTime);
         var request2 = CreateTestRequest(pastTime);
         _storage.Store(request1);
@@ -114,7 +121,7 @@ public class FailedRequestStorageTests : IDisposable
         remaining[1].Id.ShouldBe(request2.Id);
     }
 
-    private static FailedRequest CreateTestRequest(DateTimeOffset? nextAttempt = null)
+    private FailedRequest CreateTestRequest(DateTimeOffset? nextAttempt = null)
     {
         var rule = new ForwardingRule(
             Method: "POST",
@@ -129,10 +136,10 @@ public class FailedRequestStorageTests : IDisposable
             Id: Guid.NewGuid(),
             Rule: rule,
             RequestHostUrl: "http://locahost:5000",
-            FirstAttempt: DateTimeOffset.UtcNow,
-            LastAttempt: DateTimeOffset.UtcNow,
+            FirstAttempt: _startTime,
+            LastAttempt: _startTime,
             AttemptCount: 1,
-            NextAttempt: nextAttempt ?? DateTimeOffset.UtcNow.AddMinutes(1),
+            NextAttempt: nextAttempt ?? _startTime.AddMinutes(1),
             LastError: "test error"
         );
     }

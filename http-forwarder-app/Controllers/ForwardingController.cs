@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 using http_forwarder_app.Core;
@@ -77,13 +78,10 @@ namespace http_forwarder_app.Controllers
             await result.Match(
                 async ruleResult =>
                 {
-                    if (!ruleResult.Response.IsSuccessStatusCode && IsServerError(ruleResult.Response.StatusCode))
+                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.IsRetryable)
                     {
-                        if (ruleResult.Rule.IsRetryable)
-                        {
-                            await HandleFailedRequest(ruleResult.Rule, requestContent, await ruleResult.Response.Content.ReadAsStringAsync());
-                            return;
-                        }
+                        await HandleFailedRequest(ruleResult.Rule, requestContent, await ruleResult.Response.Content.ReadAsStringAsync());
+                        return;
                     }
                     await HttpContext.CopyHttpResponse(ruleResult.Response);
                 },
@@ -118,13 +116,10 @@ namespace http_forwarder_app.Controllers
             await result.Match(
                 async ruleResult =>
                 {
-                    if (!ruleResult.Response.IsSuccessStatusCode && IsServerError(ruleResult.Response.StatusCode))
+                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.IsRetryable)
                     {
-                        if (ruleResult.Rule.IsRetryable)
-                        {
-                            await HandleFailedRequest(ruleResult.Rule, requestContent, await ruleResult.Response.Content.ReadAsStringAsync());
-                            return;
-                        }
+                        await HandleFailedRequest(ruleResult.Rule, requestContent, await ruleResult.Response.Content.ReadAsStringAsync());
+                        return;
                     }
                     await HttpContext.CopyHttpResponse(ruleResult.Response);
                 },
@@ -158,13 +153,10 @@ namespace http_forwarder_app.Controllers
             await result.Match(
                 async ruleResult =>
                 {
-                    if (!ruleResult.Response.IsSuccessStatusCode && IsServerError(ruleResult.Response.StatusCode))
+                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.IsRetryable)
                     {
-                        if (ruleResult.Rule.IsRetryable)
-                        {
-                            await HandleFailedRequest(ruleResult.Rule, null, await ruleResult.Response.Content.ReadAsStringAsync());
-                            return;
-                        }
+                        await HandleFailedRequest(ruleResult.Rule, requestContent, await ruleResult.Response.Content.ReadAsStringAsync());
+                        return;
                     }
                     await HttpContext.CopyHttpResponse(ruleResult.Response);
                 },
@@ -216,17 +208,18 @@ namespace http_forwarder_app.Controllers
                 FirstAttempt: creationTime,
                 LastAttempt: creationTime,
                 AttemptCount: 1,
-                NextAttempt: creationTime.AddSeconds(30),
+                NextAttempt: creationTime.Add(RetryBackgroundService.RetryIntervalMin),
                 LastError: error
             );
 
+            _logger.LogInformation("Adding request {requestId} with event {eventName} to storage to be executed at {attemptTime}",
+                failedRequest.Id,
+                failedRequest.Rule.Event,
+                failedRequest.NextAttempt);
             _failedRequestStorage.Store(failedRequest);
             Response.StatusCode = StatusCodes.Status202Accepted;
-            await Response.WriteAsync("Request accepted for retry");
+            await Response.WriteAsync(string.Format(CultureInfo.InvariantCulture, "Request accepted for retry - {0}", failedRequest.Id));
         }
-
-        private static bool IsServerError(System.Net.HttpStatusCode statusCode) =>
-            (int)statusCode >= 500 && (int)statusCode <= 599;
 
         private static string GetHostUrl(HttpRequest request)
         {

@@ -71,6 +71,6 @@ public class ForwarderAcceptanceTests(CustomWebApplicationFactory<Program> facto
 
         response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
         var responseText = await response.Content.ReadAsStringAsync();
-        responseText.ShouldBe("Request accepted for retry");
+        responseText.ShouldStartWith("Request accepted for retry - ");
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Internal;
 using http_forwarder_app.Models;
 using http_forwarder_app.Extensions;
+using http_forwarder_app.Core;
 
 namespace http_forwarder_app.Services;
 
@@ -13,74 +15,185 @@ public class RetryBackgroundService : BackgroundService
 {
     private readonly IFailedRequestStorage _storage;
     private readonly IForwardingService _forwardingService;
+    private readonly ITimeDelayService _timeDelayService;
     private readonly ISystemClock _clock;
     private readonly ILogger<RetryBackgroundService> _logger;
+    internal static readonly TimeSpan RetryIntervalMin = TimeSpan.FromSeconds(30);
+    internal static readonly TimeSpan RetryIntervalMax = TimeSpan.FromHours(1);
+    internal static readonly TimeSpan RetryExpiry = TimeSpan.FromHours(24);
+
 
     public RetryBackgroundService(
         IFailedRequestStorage storage,
         IForwardingService forwardingService,
         ISystemClock clock,
+        ITimeDelayService timeDelayService,
         ILogger<RetryBackgroundService> logger)
     {
         _storage = storage;
+        _timeDelayService = timeDelayService;
         _forwardingService = forwardingService;
         _clock = clock;
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    private enum ProcessStatus
     {
+        // Request is successfully processed
+        Success,
+        // Request failed
+        Failed,
+        // Request is invalid
+        Invalid,
+        // Request should be retried
+        TryAgain
+    }
+
+    private async Task ProcessRequestAsync(FailedRequest request)
+    {
+        try
+        {
+            var result = await _forwardingService.ProcessPostEvent(
+                eventName: request.Rule.Event,
+                requestHostUrl: request.RequestHostUrl,
+                requestContent: request.Rule.Content ?? string.Empty);
+
+            ProcessStatus status = await result.Match(
+                ruleResult =>
+                {
+                    if (ruleResult.Response.IsSuccessStatusCode)
+                    {
+                        // Remove request from storage if successful
+                        _storage.Remove(request.Id);
+                        return Task.FromResult(ProcessStatus.Success);
+                    }
+                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.IsRetryable)
+                    {
+                        return Task.FromResult(ProcessStatus.TryAgain);
+                    }
+                    _logger.LogInformation("Request {requestId} for event {eventName} failed with status {statusCode}, but is not a server error. Hence, will be removed from storage",
+                        request.Id,
+                        request.Rule.Event,
+                        ruleResult.Response.StatusCode);
+                    _storage.Remove(request.Id);
+                    return Task.FromResult(ProcessStatus.Failed);
+                },
+                noRule =>
+                {
+                    _logger.LogInformation("Removing request {requestId} with event {eventName} from storage as there is no matching rule", request.Id, request.Rule.Event);
+                    _storage.Remove(request.Id);
+                    return Task.FromResult(ProcessStatus.Invalid);
+                },
+                noBody =>
+                {
+                    _logger.LogInformation("Removing request {requestId} with event {eventName} from storage as there is no body", request.Id, request.Rule.Event);
+                    _storage.Remove(request.Id);
+                    return Task.FromResult(ProcessStatus.Invalid);
+                },
+                remoteRule =>
+                {
+                    _logger.LogInformation("Removing request {requestId} with event {eventName} from storage as it is a remote rule with tags [{tags}]",
+                        request.Id,
+                        request.Rule.Event,
+                        string.Join(", ", remoteRule.RemoteRule.Tags));
+                    _storage.Remove(request.Id);
+                    return Task.FromResult(ProcessStatus.Invalid);
+                }
+            );
+            if (status != ProcessStatus.TryAgain)
+            {
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Retry attempt failed for request {RequestId}", request.Id);
+        }
+
+        // Update retry information
+        var now = _clock.UtcNow;
+        var nextAttempt = request with
+        {
+            AttemptCount = request.AttemptCount + 1,
+            LastAttempt = now,
+            NextAttempt = now.Add(request.AttemptCount.CalculateExponentialDelay(RetryIntervalMin, RetryIntervalMax))
+        };
+
+        if (nextAttempt.NextAttempt > request.FirstAttempt.Add(RetryExpiry))
+        {
+            _logger.LogInformation("Removing request {requestId} with event {eventName} after {attempts} attempts from storage as it has expired", request.Id, request.Rule.Event, request.AttemptCount);
+            _storage.Remove(request.Id);
+        }
+        else
+        {
+            _logger.LogInformation("Re-adding request {requestId} with event {eventName} to storage for attempt {attempts} to be executed at {attemptTime}", request.Id, request.Rule.Event, nextAttempt.AttemptCount, nextAttempt.NextAttempt);
+            _storage.Store(nextAttempt);
+        }
+    }
+
+    // Load and process all pending requests once
+    protected async Task ProcessPendingAsync(DateTimeOffset asOf, CancellationToken stoppingToken)
+    {
+        var pendingNow = _storage.GetRequestsDue(asOf);
+        foreach (var request in pendingNow)
+        {
+            if (stoppingToken.IsCancellationRequested) break;
+
+            await ProcessRequestAsync(request);
+        }
+    }
+
+    private async Task RunAsync(CancellationToken stoppingToken)
+    {
+        var maxWait = RetryIntervalMin;
+        var nextAttempt = DateTimeOffset.MaxValue;
+        int currentHash = 0;
         while (!stoppingToken.IsCancellationRequested)
         {
-            var requests = _storage.GetPendingRequests();
-            foreach (var request in requests)
+            var prevHash = currentHash;
+            currentHash = _storage.StorageHash;
+            var executionTime = _clock.UtcNow;
+            if (currentHash != prevHash || nextAttempt <= executionTime)
             {
+                // Storage has changed or next attempt is due, process any requests that are due now
+                await ProcessPendingAsync(executionTime, stoppingToken);
+
                 try
                 {
-                    var result = await _forwardingService.ProcessPostEvent(
-                        eventName: request.Rule.Event,
-                        requestHostUrl: request.RequestHostUrl,
-                        requestContent: request.Rule.Content ?? string.Empty);
-
-                    await result.Match(
-                        ruleResult =>
-                        {
-                            if (ruleResult.Response.IsSuccessStatusCode)
-                            {
-                                _storage.Remove(request.Id);
-                            }
-                            return Task.CompletedTask;
-                        },
-                        noRule => Task.CompletedTask,
-                        noBody => Task.CompletedTask,
-                        remoteRule => Task.CompletedTask
-                    );
+                    // Get all requests to compute the nearest NextAttempt in the future
+                    var notDue = _storage.GetAllRequests();
+                    var next = notDue
+                        .OrderBy(r => r.NextAttempt)
+                        .FirstOrDefault();
+                    nextAttempt = next?.NextAttempt ?? DateTimeOffset.MaxValue;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Retry attempt failed for request {RequestId}", request.Id);
-                }
-
-                // Update retry information
-                var now = _clock.UtcNow;
-                var nextAttempt = request with
-                {
-                    AttemptCount = request.AttemptCount + 1,
-                    LastAttempt = now,
-                    NextAttempt = now.AddSeconds(request.AttemptCount.CalculateExponentialDelay(30, 3600))
-                };
-
-                if (nextAttempt.NextAttempt > request.FirstAttempt.AddHours(24))
-                {
-                    _storage.Remove(request.Id);
-                }
-                else
-                {
-                    _storage.Store(nextAttempt);
+                    _logger.LogWarning(ex, "Failed to compute next retry time from storage. Falling back to periodic wake.");
                 }
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+            var currentTime = _clock.UtcNow;
+            TimeSpan? waitUntil = null;
+            if (nextAttempt != DateTimeOffset.MaxValue)
+            {
+                waitUntil = nextAttempt - currentTime;
+                if (waitUntil < TimeSpan.Zero)
+                {
+                    waitUntil = TimeSpan.Zero;
+                }
+            }
+
+            var delay = waitUntil.HasValue
+                ? (waitUntil.Value < maxWait ? waitUntil.Value : maxWait)
+                : maxWait;
+            var delayTask = _timeDelayService.DelayAsync(delay, stoppingToken);
+            await delayTask.IgnoreCancellation();
         }
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        await RunAsync(stoppingToken);
     }
 }
