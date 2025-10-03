@@ -23,4 +23,3 @@ jobs:
           image-tags: "!latest"
           cut-off: 90d
           keep-n-most-recent: 10
-          dry-run: true
