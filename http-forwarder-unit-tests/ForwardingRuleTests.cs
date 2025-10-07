@@ -1,11 +1,14 @@
+using System.Collections.Immutable;
 using http_forwarder_app.Models;
 using Shouldly;
+using Xunit.Repeat;
 
 namespace http_forwarder_unit_tests;
 
 public class ForwardingRuleTests
 {
     [Fact]
+    [Repeat(10)]
     public void ToString_WithNoOptionalParameters_FormatsCorrectly()
     {
         // Arrange
@@ -23,6 +26,7 @@ public class ForwardingRuleTests
     }
 
     [Fact]
+    [Repeat(10)]
     public void ToString_WithHeadersAndTags_FormatsCorrectly()
     {
         // Arrange
@@ -31,7 +35,7 @@ public class ForwardingRuleTests
             @event: "complex-event",
             targetUrl: "http://api.example.com")
         {
-            Headers = new Dictionary<string, string> { { "X-Test", "true" }, { "Content-Type", "application/json" } },
+            Headers = new Dictionary<string, string> { { "X-Test", "true" }, { "Content-Type", "application/json" } }.ToImmutableDictionary(),
             Tags = ["local", "test"]
         };
 
@@ -42,12 +46,13 @@ public class ForwardingRuleTests
         rule.Headers.ShouldNotBeEmpty();
         rule.Headers.Count.ShouldBe(2);
         result.ShouldStartWith("Method = POST, Event = complex-event, TargetUrl = http://api.example.com, HasContent = True, Content = , IgnoreSslError = False, ");
-        result.ShouldContain("Headers = [X-Test=true, Content-Type=application/json]", customMessage: result);
-        result.ShouldContain("Tags = [local, test]");
+        result.ShouldContain("Headers = [Content-Type=application/json, X-Test=true]", customMessage: result);
+        result.ShouldContain("Tags = [local, test]", customMessage: result);
         result.ShouldEndWith(", Retry = { Allow = False, Expiry = 23:59:59 }");
     }
 
     [Fact]
+    [Repeat(10)]
     public void ToString_WithRetryEnabled_FormatsCorrectly()
     {
         // Arrange

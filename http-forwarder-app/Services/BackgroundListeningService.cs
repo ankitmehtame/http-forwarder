@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Google.Cloud.PubSub.V1;
 using http_forwarder_app.Core;
+using http_forwarder_app.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,23 +15,30 @@ public class BackgroundListeningService : IHostedService
     private readonly ILogger<BackgroundListeningService> _logger;
     private readonly CloudMessageHandlerFactory _cloudMessageHandlerFactory;
     private readonly IConfiguration _configuration;
+    private readonly ITimeDelayService _timeDelayService;
 
     private const int _retryConnectionSeconds = 60;
     private readonly CancellationTokenSource _shutdownSource;
 
-    public BackgroundListeningService(ILogger<BackgroundListeningService> logger, CloudMessageHandlerFactory cloudMessageHandlerFactory, IConfiguration configuration)
+    public BackgroundListeningService(ILogger<BackgroundListeningService> logger, CloudMessageHandlerFactory cloudMessageHandlerFactory, IConfiguration configuration, ITimeDelayService timeDelayService)
     {
         _logger = logger;
         _cloudMessageHandlerFactory = cloudMessageHandlerFactory;
+        _timeDelayService = timeDelayService;
         _configuration = configuration;
         _shutdownSource = new CancellationTokenSource();
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await Task.Yield();
+        if (!_configuration.IsListenerEnabled())
+        {
+            _logger.LogInformation($"{nameof(BackgroundListeningService)} is not enabled");
+            return;
+        }
+        if (cancellationToken.IsCancellationRequested) return;
 
-        if (!_configuration.IsListenerEnabled() || cancellationToken.IsCancellationRequested) return;
+        await Task.Yield();
 
         string? projectId = _configuration.GetCloudProjectId();
         string? genericSubscriptionId = _configuration.GetGenericSubscriptionId();
@@ -87,7 +95,7 @@ public class BackgroundListeningService : IHostedService
                 _logger.LogWarning("Error during subscription {subId} {errorMessage}", subId, ex);
             }
             if (cancellationToken.IsCancellationRequested) break;
-            await Task.Delay(TimeSpan.FromSeconds(_retryConnectionSeconds), cancellationToken).IgnoreCancellation();
+            await _timeDelayService.DelayAsync(TimeSpan.FromSeconds(_retryConnectionSeconds), cancellationToken).IgnoreCancellation();
         }
         _logger.LogInformation("Stopped subscription for {subId}", subId);
     }

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -6,7 +7,7 @@ namespace http_forwarder_app.Models;
 
 public record class ForwardingRule
 {
-    public ForwardingRule(string method, string @event, string targetUrl, bool hasContent, string? content, bool ignoreSslError, Dictionary<string, string> headers, HashSet<string> tags, RuleRetry retry)
+    public ForwardingRule(string method, string @event, string targetUrl, bool hasContent, string? content, bool ignoreSslError, ImmutableDictionary<string, string> headers, ImmutableHashSet<string> tags, RuleRetry retry)
     {
         Method = method;
         Event = @event;
@@ -15,14 +16,14 @@ public record class ForwardingRule
         Content = content;
         IgnoreSslError = ignoreSslError;
         Headers = headers;
-        Tags = tags.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Tags = tags;
         Retry = retry;
     }
 
-    public ForwardingRule(string method, string @event, string targetUrl) : this(method, @event, targetUrl, true, null, false, [], [], RuleRetry.DisabledDefault)
+    public ForwardingRule(string method, string @event, string targetUrl) : this(method, @event, targetUrl, true, null, false, ImmutableDictionary<string, string>.Empty, [], RuleRetry.DisabledDefault)
     { }
 
-    public ForwardingRule(ForwardingRuleDto dto) : this(dto.Method, dto.Event, dto.TargetUrl, dto.HasContent ?? true, dto.Content, dto.IgnoreSslError ?? false, dto.Headers ?? [], dto.Tags ?? [], dto.Retry ?? RuleRetry.DisabledDefault)
+    public ForwardingRule(ForwardingRuleDto dto) : this(dto.Method, dto.Event, dto.TargetUrl, dto.HasContent ?? true, dto.Content, dto.IgnoreSslError ?? false, dto.Headers ?? ImmutableDictionary<string, string>.Empty, dto.Tags ?? [], dto.Retry ?? RuleRetry.DisabledDefault)
     { }
 
 
@@ -39,9 +40,9 @@ public record class ForwardingRule
 
     public bool IgnoreSslError { get; init; }
 
-    public Dictionary<string, string> Headers { get; init; }
+    public ImmutableDictionary<string, string> Headers { get; init; }
 
-    public HashSet<string> Tags { get; init; }
+    public ImmutableHashSet<string> Tags { get; init; }
 
     [JsonIgnore]
     public PrettyPrintDictionary? __PrettyHeaders { get; private set; } = null;
@@ -57,12 +58,14 @@ public record class ForwardingRule
     public override string ToString()
     {
         __PrettyHeaders ??= new(Headers);
-        __PrettyTags ??= "[" + string.Join(", ", Tags) + "]";
+        __PrettyTags ??= "[" + string.Join(", ", Tags.Order(StringComparer.OrdinalIgnoreCase)) + "]";
         var builder = new StringBuilder();
         PrintMembers(builder);
         builder.Replace($", {nameof(Headers)} = System.Collections.Generic.Dictionary`2[System.String,System.String]", string.Empty);
+        builder.Replace($", {nameof(Headers)} = System.Collections.Immutable.ImmutableDictionary`2[System.String,System.String]", string.Empty);
         builder.Replace($", {nameof(__PrettyHeaders)} = ", $", {nameof(Headers)} = ");
         builder.Replace($", {nameof(Tags)} = System.Collections.Generic.HashSet`1[System.String]", string.Empty);
+        builder.Replace($", {nameof(Tags)} = System.Collections.Immutable.ImmutableHashSet`1[System.String]", string.Empty);
         builder.Replace($", {nameof(__PrettyTags)} = ", $", {nameof(Tags)} = ");
         builder.Replace($", {nameof(Retry)} = {nameof(RuleRetry)} ", $", {nameof(Retry)} = ");
 
@@ -82,7 +85,7 @@ public class PrettyPrintDictionary(IDictionary<string, string> Pairs)
         var builder = new StringBuilder();
         builder.Append('[');
         var curIndex = 0;
-        foreach (var pair in Pairs)
+        foreach (var pair in Pairs.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase))
         {
             if (curIndex > 0) builder.Append(", ");
             builder.Append(pair.Key);
@@ -95,7 +98,7 @@ public class PrettyPrintDictionary(IDictionary<string, string> Pairs)
     }
 }
 
-public record class ForwardingRuleMinimal(string Method, string Event, HashSet<string> Tags)
+public record class ForwardingRuleMinimal(string Method, string Event, ImmutableHashSet<string> Tags)
 {
     [JsonIgnore]
     public string __PrettyTags { get; init; } = "[" + string.Join(", ", Tags ?? []) + "]";
@@ -105,7 +108,8 @@ public record class ForwardingRuleMinimal(string Method, string Event, HashSet<s
         var builder = new StringBuilder();
         PrintMembers(builder);
         builder.Replace($", {nameof(Tags)} = System.Collections.Generic.HashSet`1[System.String]", string.Empty);
-        builder.Replace($", {nameof(__PrettyTags)} = ", $", {nameof(Tags)} = ");
+        builder.Replace($", {nameof(__PrettyTags)} = System.Collections.Immutable.ImmutableHashSet`1[System.String]", $", {nameof(Tags)} = ");
+
         return builder.ToString();
     }
 }
@@ -116,8 +120,8 @@ public record class ForwardingRuleDto(string Method,
     bool? HasContent = null,
     string? Content = null,
     bool? IgnoreSslError = null,
-    Dictionary<string, string>? Headers = null,
-    HashSet<string>? Tags = null,
+    ImmutableDictionary<string, string>? Headers = null,
+    ImmutableHashSet<string>? Tags = null,
     RuleRetry? Retry = null)
 {
     public ForwardingRule ToForwardingRule()
