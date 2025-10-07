@@ -203,7 +203,8 @@ namespace http_forwarder_app.Controllers
             var creationTime = _clock.UtcNow;
             var failedRequest = new FailedRequest(
                 Id: Guid.NewGuid(),
-                Rule: rule with { Content = content },
+                Rule: rule.ToMinimal(),
+                RequestBody: content ?? string.Empty,
                 RequestHostUrl: GetHostUrl(Request),
                 FirstAttempt: creationTime,
                 LastAttempt: creationTime,

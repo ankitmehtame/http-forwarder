@@ -21,7 +21,7 @@ namespace http_forwarder_app.Core
         {
             var client = httpClientFactory.CreateClient(ignoreSslError ? Constants.HTTP_CLIENT_IGNORE_SSL_ERROR : eventName);
             AddHeaders(client, headers);
-            var contentType = headers["Content-Type"];
+            var contentType = SafeGetContentType(headers);
             var finalContent = string.IsNullOrEmpty(contentType) ? new StringContent(content ?? string.Empty) : new StringContent(content ?? string.Empty, System.Text.Encoding.UTF8, contentType);
             logger.LogDebug("Calling POST {url} with body {body} and headers {headers}", targetUrl, content ?? string.Empty, new PrettyPrintDictionary(headers));
             var resp = await client.PostAsync(targetUrl, finalContent);
@@ -41,22 +41,29 @@ namespace http_forwarder_app.Core
         {
             var client = httpClientFactory.CreateClient(ignoreSslError ? Constants.HTTP_CLIENT_IGNORE_SSL_ERROR : eventName);
             AddHeaders(client, headers);
-            var contentType = headers["Content-Type"];
+            var contentType = SafeGetContentType(headers);
             var finalContent = string.IsNullOrEmpty(contentType) ? new StringContent(content ?? string.Empty) : new StringContent(content ?? string.Empty, System.Text.Encoding.UTF8, contentType);
             logger.LogDebug("Calling PUT {url} with body {body} and headers {headers}", targetUrl, content ?? string.Empty, new PrettyPrintDictionary(headers));
             var resp = await client.PutAsync(targetUrl, finalContent);
             return resp;
         }
 
-        private void AddHeaders(HttpClient httpClient, IDictionary<string, string> headers)
+        private static void AddHeaders(HttpClient httpClient, IDictionary<string, string> headers)
         {
-            if (headers != null && headers.Count > 0)
+            if (headers.Count == 0) return;
+            foreach (var h in headers)
             {
-                foreach (var h in headers)
-                {
-                    httpClient.DefaultRequestHeaders.TryAddWithoutValidation(h.Key, h.Value);
-                }
+                httpClient.DefaultRequestHeaders.TryAddWithoutValidation(h.Key, h.Value);
             }
+        }
+
+        private static string? SafeGetContentType(IDictionary<string, string> headers)
+        {
+            if (headers.TryGetValue("Content-Type", out var contentType) == true)
+            {
+                return contentType;
+            }
+            return null;
         }
     }
 }

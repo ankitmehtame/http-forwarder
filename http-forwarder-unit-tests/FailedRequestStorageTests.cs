@@ -140,8 +140,9 @@ public class FailedRequestStorageTests : IDisposable
 
         return new FailedRequest(
             Id: Guid.NewGuid(),
-            Rule: rule,
+            Rule: rule.ToMinimal(),
             RequestHostUrl: "http://locahost:5000",
+            RequestBody: "test-body",
             FirstAttempt: _startTime,
             LastAttempt: _startTime,
             AttemptCount: 1,

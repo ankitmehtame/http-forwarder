@@ -6,7 +6,6 @@ using http_forwarder_app.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using OneOf;
 
 namespace http_forwarder_app.Services;
 
@@ -30,6 +29,8 @@ public class BackgroundListeningService : IHostedService
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await Task.Yield();
+
+        if (!_configuration.IsListenerEnabled() || cancellationToken.IsCancellationRequested) return;
 
         string? projectId = _configuration.GetCloudProjectId();
         string? genericSubscriptionId = _configuration.GetGenericSubscriptionId();

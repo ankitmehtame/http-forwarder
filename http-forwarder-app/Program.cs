@@ -56,11 +56,7 @@ builder.Services.AddSingleton<IFailedRequestStorage, FailedRequestStorage>();
 builder.Services.AddHostedService<RetryBackgroundService>();
 builder.Services.AddSingleton<ISystemClock, SystemClock>();
 builder.Services.AddSingleton<ITimeDelayService, TimeDelayService>();
-
-if (builder.Configuration.IsListenerEnabled())
-{
-    builder.Services.AddHostedService<BackgroundListeningService>();
-}
+builder.Services.AddHostedService<BackgroundListeningService>();
 
 var app = builder.Build();
 
