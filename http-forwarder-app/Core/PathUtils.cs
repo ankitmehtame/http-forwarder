@@ -23,7 +23,7 @@ namespace http_forwarder_app.Core
                 .Where(p => !string.IsNullOrEmpty(p))
                 .ToArray()!;
             var realPath = pathsForStorage.FirstOrDefault(Directory.Exists) ?? pathsForStorage.First();
-            return realPath;
+            return realPath ?? throw new Exception("No valid storage path found!");
         }
 
         public static string GetConfFilePath(this IConfiguration configuration, string fileName)

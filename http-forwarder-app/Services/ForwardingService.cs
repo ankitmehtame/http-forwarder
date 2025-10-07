@@ -1,4 +1,3 @@
-using System.Net.Http;
 using http_forwarder_app.Core;
 using http_forwarder_app.Models;
 using Microsoft.Extensions.Logging;

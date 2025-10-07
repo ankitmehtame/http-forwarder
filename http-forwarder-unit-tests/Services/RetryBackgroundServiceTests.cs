@@ -1,13 +1,9 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Logging;
 using Moq;
 using http_forwarder_app.Models;
 using http_forwarder_app.Services;
-using OneOf;
 using Shouldly;
 using http_forwarder_app;
 
@@ -56,18 +52,19 @@ public class RetryBackgroundServiceTests
     public async Task ProcessPendingAsync_ShouldRetryFailedRequestsAndRemoveOnSuccess()
     {
         // Arrange
-        var request = CreateTestRequest();
+        var rule = CreateRule();
+        var request = CreateTestRequest(rule);
         _storageMock.Setup(x => x.GetRequestsDue(It.IsAny<DateTimeOffset>()))
-            .Returns(new List<FailedRequest> { request });
+            .Returns([request]);
 
         var successResult = new HttpResponseRuleResult(
             new HttpResponseMessage(System.Net.HttpStatusCode.OK),
-            request.Rule);
+            rule);
 
         _forwardingServiceMock.Setup(x => x.ProcessPostEvent(
             request.Rule.Event,
             It.IsAny<string>(),
-            request.Rule.Content!))
+            request.RequestBody))
             .ReturnsAsync(successResult);
 
         // Act
@@ -83,18 +80,19 @@ public class RetryBackgroundServiceTests
     public async Task ProcessPendingAsync_ShouldUpdateRetryInfoOnServerErrorFailure()
     {
         // Arrange
-        var request = CreateTestRequest();
+        var rule = CreateRule();
+        var request = CreateTestRequest(rule);
         _storageMock.Setup(x => x.GetRequestsDue(It.IsAny<DateTimeOffset>()))
-            .Returns(new List<FailedRequest> { request });
+            .Returns([request]);
 
         var failureResult = new HttpResponseRuleResult(
             new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError),
-            request.Rule);
+            rule);
 
         _forwardingServiceMock.Setup(x => x.ProcessPostEvent(
             request.Rule.Event,
             It.IsAny<string>(),
-            request.Rule.Content!))
+            request.RequestBody))
             .ReturnsAsync(failureResult);
 
         // Act
@@ -114,18 +112,19 @@ public class RetryBackgroundServiceTests
     public async Task ProcessPendingAsync_ShouldUpdateRetryInfoOnClientErrorFailure()
     {
         // Arrange
-        var request = CreateTestRequest();
+        var rule = CreateRule();
+        var request = CreateTestRequest(rule);
         _storageMock.Setup(x => x.GetRequestsDue(It.IsAny<DateTimeOffset>()))
-            .Returns(new List<FailedRequest> { request });
+            .Returns([request]);
 
         var failureResult = new HttpResponseRuleResult(
             new HttpResponseMessage(System.Net.HttpStatusCode.BadRequest),
-            request.Rule);
+            rule);
 
         _forwardingServiceMock.Setup(x => x.ProcessPostEvent(
             request.Rule.Event,
             It.IsAny<string>(),
-            request.Rule.Content!))
+            request.RequestBody))
             .ReturnsAsync(failureResult);
 
         // Act
@@ -165,13 +164,14 @@ public class RetryBackgroundServiceTests
     public async Task ExecuteAsync_WhenRequestsAreDue_ShouldProcessThem()
     {
         // Arrange
-        var request = CreateTestRequest();
+        var rule = CreateRule();
+        var request = CreateTestRequest(rule);
         _storageMock.Setup(s => s.GetRequestsDue(It.IsAny<DateTimeOffset>())).Returns([request]);
         _storageMock.Setup(s => s.GetAllRequests()).Returns([]); // No more requests after processing
         _storageMock.Setup(s => s.StorageHash).Returns(1);
 
-        var successResult = new HttpResponseRuleResult(new(System.Net.HttpStatusCode.OK), request.Rule);
-        _forwardingServiceMock.Setup(f => f.ProcessPostEvent(request.Rule.Event, request.RequestHostUrl, request.Rule.Content!))
+        var successResult = new HttpResponseRuleResult(new(System.Net.HttpStatusCode.OK), rule);
+        _forwardingServiceMock.Setup(f => f.ProcessPostEvent(request.Rule.Event, request.RequestHostUrl, request.RequestBody))
             .ReturnsAsync(successResult);
 
         _delayServiceMock.Setup(d => d.DelayAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
@@ -183,7 +183,7 @@ public class RetryBackgroundServiceTests
 
         // Assert
         _storageMock.Verify(s => s.GetRequestsDue(It.IsAny<DateTimeOffset>()), Times.Once);
-        _forwardingServiceMock.Verify(f => f.ProcessPostEvent(request.Rule.Event, request.RequestHostUrl, request.Rule.Content!), Times.Once);
+        _forwardingServiceMock.Verify(f => f.ProcessPostEvent(request.Rule.Event, request.RequestHostUrl, request.RequestBody), Times.Once);
         _storageMock.Verify(s => s.Remove(request.Id), Times.Once);
         _delayServiceMock.Verify(d => d.DelayAsync(TimeSpan.FromHours(1), It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -192,7 +192,8 @@ public class RetryBackgroundServiceTests
     public async Task ExecuteAsync_WhenStorageChanges_ShouldReEvaluate()
     {
         // Arrange
-        var request = CreateTestRequest();
+        var rule = CreateRule();
+        var request = CreateTestRequest(rule);
         var nextAttemptTime = _startTime.AddMinutes(10);
         var requestInFuture = request with { NextAttempt = nextAttemptTime };
 
@@ -231,25 +232,31 @@ public class RetryBackgroundServiceTests
         delayCallCount.ShouldBe(2);
     }
 
-    private FailedRequest CreateTestRequest()
+    private FailedRequest CreateTestRequest(ForwardingRule rule)
     {
-        var rule = new ForwardingRule(
-            Method: "POST",
-            Event: "test-event",
-            TargetUrl: "http://test.com",
-            HasContent: true,
-            Content: "test-content",
-            Retry: RuleRetry.AllowedDefault);
-
         return new FailedRequest(
             Id: Guid.NewGuid(),
-            Rule: rule,
+            Rule: rule.ToMinimal(),
+            RequestBody: "test-body",
             RequestHostUrl: "http://localhost:5000",
             FirstAttempt: _startTime.AddMinutes(-5),
             LastAttempt: _startTime.AddMinutes(-5),
             AttemptCount: 1,
             NextAttempt: _startTime.AddMinutes(-1),
             LastError: "test error");
+    }
+
+    private static ForwardingRule CreateRule()
+    {
+        return new ForwardingRule(
+            method: "POST",
+            @event: "test-event",
+            targetUrl: "http://test.com") with
+        {
+            HasContent = true,
+            Content = "test-content",
+            Retry = RuleRetry.AllowedDefault
+        };
     }
 
     // Helper class to expose ExecuteAsync for testing
@@ -274,7 +281,8 @@ public class RetryBackgroundServiceTests
     public async Task ProcessPendingAsync_ShouldRemoveRequestOnNoRuleFound()
     {
         // Arrange
-        var request = CreateTestRequest();
+        var rule = CreateRule();
+        var request = CreateTestRequest(rule);
         _storageMock.Setup(x => x.GetRequestsDue(It.IsAny<DateTimeOffset>()))
             .Returns(new List<FailedRequest> { request });
 
@@ -283,7 +291,7 @@ public class RetryBackgroundServiceTests
         _forwardingServiceMock.Setup(x => x.ProcessPostEvent(
             request.Rule.Event,
             It.IsAny<string>(),
-            request.Rule.Content!))
+            request.RequestBody))
             .ReturnsAsync(noRuleResult);
 
         // Act
@@ -299,7 +307,8 @@ public class RetryBackgroundServiceTests
     public async Task ProcessPendingAsync_ShouldRemoveRequestOnNoBody()
     {
         // Arrange
-        var request = CreateTestRequest();
+        var rule = CreateRule();
+        var request = CreateTestRequest(rule);
         _storageMock.Setup(x => x.GetRequestsDue(It.IsAny<DateTimeOffset>()))
             .Returns(new List<FailedRequest> { request });
 
@@ -308,7 +317,7 @@ public class RetryBackgroundServiceTests
         _forwardingServiceMock.Setup(x => x.ProcessPostEvent(
             request.Rule.Event,
             It.IsAny<string>(),
-            request.Rule.Content!))
+            request.RequestBody))
             .ReturnsAsync(noBodyResult);
 
         // Act
@@ -324,16 +333,17 @@ public class RetryBackgroundServiceTests
     public async Task ProcessPendingAsync_ShouldRemoveRequestOnRemoteRule()
     {
         // Arrange
-        var request = CreateTestRequest();
+        var rule = CreateRule();
+        var request = CreateTestRequest(rule);
         _storageMock.Setup(x => x.GetRequestsDue(It.IsAny<DateTimeOffset>()))
-            .Returns(new List<FailedRequest> { request });
+            .Returns([request]);
 
-        RemoteRuleFoundResult remoteRuleResult = new(request.Rule);
+        RemoteRuleFoundResult remoteRuleResult = new(rule);
 
         _forwardingServiceMock.Setup(x => x.ProcessPostEvent(
             request.Rule.Event,
             It.IsAny<string>(),
-            request.Rule.Content!))
+            request.RequestBody))
             .ReturnsAsync(remoteRuleResult);
 
         // Act

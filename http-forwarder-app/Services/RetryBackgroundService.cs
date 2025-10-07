@@ -44,18 +44,6 @@ public class RetryBackgroundService : BackgroundService
         _waitTokenSource = new CancellationTokenSource();
     }
 
-    private enum ProcessStatus
-    {
-        // Request is successfully processed
-        Success,
-        // Request failed
-        Failed,
-        // Request is invalid
-        Invalid,
-        // Request should be retried
-        TryAgain
-    }
-
     private async Task ProcessRequestAsync(FailedRequest request)
     {
         try
@@ -63,60 +51,66 @@ public class RetryBackgroundService : BackgroundService
             var result = await _forwardingService.ProcessPostEvent(
                 eventName: request.Rule.Event,
                 requestHostUrl: request.RequestHostUrl,
-                requestContent: request.Rule.Content ?? string.Empty);
+                requestContent: request.RequestBody);
 
-            ProcessStatus status = await result.Match(
+            await result.Match(
                 ruleResult =>
                 {
                     if (ruleResult.Response.IsSuccessStatusCode)
                     {
                         // Remove request from storage if successful
                         _storage.Remove(request.Id);
-                        return Task.FromResult(ProcessStatus.Success);
                     }
-                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.Retry.Allow)
+                    else if (ruleResult.Response.IsServerError() && ruleResult.Rule.Retry.Allow)
                     {
-                        return Task.FromResult(ProcessStatus.TryAgain);
+                        // Try again
+                        UpdateStorageRequest(request, ruleResult.Rule.Retry);
                     }
-                    _logger.LogInformation("Request {requestId} for event {eventName} failed with status {statusCode}, but is not a server error. Hence, will be removed from storage",
-                        request.Id,
-                        request.Rule.Event,
-                        ruleResult.Response.StatusCode);
-                    _storage.Remove(request.Id);
-                    return Task.FromResult(ProcessStatus.Failed);
+                    else
+                    {
+                        // Failure - won't be retried
+                        _logger.LogInformation("Request {requestId} for event {eventName} failed with status {statusCode}, but is not a server error. Hence, will be removed from storage",
+                            request.Id,
+                            request.Rule.Event,
+                            ruleResult.Response.StatusCode);
+                        _storage.Remove(request.Id);
+                    }
+                    return Task.CompletedTask;
                 },
                 noRule =>
                 {
+                    // Invalid request - won't be retried
                     _logger.LogInformation("Removing request {requestId} with event {eventName} from storage as there is no matching rule", request.Id, request.Rule.Event);
                     _storage.Remove(request.Id);
-                    return Task.FromResult(ProcessStatus.Invalid);
+                    return Task.CompletedTask;
                 },
                 noBody =>
                 {
+                    // Invalid request - won't be retried
                     _logger.LogInformation("Removing request {requestId} with event {eventName} from storage as there is no body", request.Id, request.Rule.Event);
                     _storage.Remove(request.Id);
-                    return Task.FromResult(ProcessStatus.Invalid);
+                    return Task.CompletedTask;
                 },
                 remoteRule =>
                 {
+                    // Invalid request - won't be retried
                     _logger.LogInformation("Removing request {requestId} with event {eventName} from storage as it is a remote rule with tags [{tags}]",
                         request.Id,
                         request.Rule.Event,
                         string.Join(", ", remoteRule.RemoteRule.Tags));
                     _storage.Remove(request.Id);
-                    return Task.FromResult(ProcessStatus.Invalid);
+                    return Task.CompletedTask;
                 }
             );
-            if (status != ProcessStatus.TryAgain)
-            {
-                return;
-            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Retry attempt failed for request {RequestId}", request.Id);
         }
+    }
 
+    private void UpdateStorageRequest(FailedRequest request, RuleRetry retry)
+    {
         // Update retry information
         var now = _clock.UtcNow;
         var nextAttempt = request with
@@ -126,7 +120,7 @@ public class RetryBackgroundService : BackgroundService
             NextAttempt = now.Add(request.AttemptCount.CalculateExponentialDelay(RetryIntervalMin, RetryIntervalMax))
         };
 
-        if (nextAttempt.NextAttempt > request.FirstAttempt.Add(GetValidExpiry(request.Rule.Retry)))
+        if (nextAttempt.NextAttempt > request.FirstAttempt.Add(GetValidExpiry(retry)))
         {
             _logger.LogInformation("Removing request {requestId} with event {eventName} after {attempts} attempts from storage as it has expired", request.Id, request.Rule.Event, request.AttemptCount);
             _storage.Remove(request.Id);

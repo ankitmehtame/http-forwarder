@@ -4,7 +4,7 @@ using Shouldly;
 
 namespace http_forwarder_unit_tests;
 
-public class SerialzerTests
+public class SerializerTests
 {
     const string simplePostJson = """
     {
@@ -70,7 +70,7 @@ public class SerialzerTests
     [Fact]
     public void SerializesSimpleCorrectly()
     {
-        var simplePost = JsonUtils.Deserialize<ForwardingRule>(simplePostJson);
+        var simplePost = JsonUtils.Deserialize<ForwardingRuleDto>(simplePostJson)?.ToForwardingRule();
         simplePost.ShouldNotBeNull();
         simplePost.Method.ShouldBe("POST");
         simplePost.Event.ShouldBe("TEST");
@@ -83,7 +83,7 @@ public class SerialzerTests
     [Fact]
     public void SerializesWithContentCorrectly()
     {
-        var contentPost = JsonUtils.Deserialize<ForwardingRule>(contentPostJson);
+        var contentPost = JsonUtils.Deserialize<ForwardingRuleDto>(contentPostJson)?.ToForwardingRule();
         contentPost.ShouldNotBeNull();
         contentPost.Method.ShouldBe("POST");
         contentPost.Event.ShouldBe("dummy-event");
@@ -101,7 +101,7 @@ public class SerialzerTests
     [Fact]
     public void SerializesWithDefaultRetryJsonCorrectly()
     {
-        var contentPost = JsonUtils.Deserialize<ForwardingRule>(defaultRetryJson);
+        var contentPost = JsonUtils.Deserialize<ForwardingRuleDto>(defaultRetryJson)?.ToForwardingRule();
         contentPost.ShouldNotBeNull();
         contentPost.Retry.Allow.ShouldBeTrue();
         contentPost.Retry.Expiry.ShouldBe(new(hours: 23, minutes: 59, seconds: 59));
@@ -110,7 +110,7 @@ public class SerialzerTests
     [Fact]
     public void SerializesWithJustRetryExpiryJsonCorrectly()
     {
-        var contentPost = JsonUtils.Deserialize<ForwardingRule>(retryExpiryJson);
+        var contentPost = JsonUtils.Deserialize<ForwardingRuleDto>(retryExpiryJson)?.ToForwardingRule();
         contentPost.ShouldNotBeNull();
         contentPost.Retry.Allow.ShouldBeTrue();
         contentPost.Retry.Expiry.ShouldBe(new(hours: 0, minutes: 5, seconds: 0));
@@ -119,9 +119,10 @@ public class SerialzerTests
     [Fact]
     public void DeserializesSerializedContentCorrectly()
     {
-        var contentPost = JsonUtils.Deserialize<ForwardingRule>(contentPostJson);
-        var contentPostSerialized = JsonUtils.Serialize(contentPost, false);
-        var contentPostCloned = JsonUtils.Deserialize<ForwardingRule>(contentPostSerialized);
+        var contentPost = JsonUtils.Deserialize<ForwardingRuleDto>(contentPostJson)?.ToForwardingRule();
+        contentPost.ShouldNotBeNull();
+        var contentPostSerialized = JsonUtils.Serialize(contentPost.ToDto(), false);
+        var contentPostCloned = JsonUtils.Deserialize<ForwardingRuleDto>(contentPostSerialized)?.ToForwardingRule();
         contentPostCloned.ShouldBeEquivalentTo(contentPost);
         // Not same instance
         contentPostCloned.ShouldNotBeSameAs(contentPost);
