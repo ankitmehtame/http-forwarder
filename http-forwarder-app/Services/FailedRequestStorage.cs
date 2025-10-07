@@ -123,7 +123,7 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
         }
         var content = File.ReadAllText(_storageFile);
         _storageHash = content.GetHashCode();
-        return JsonUtils.Deserialize<List<FailedRequest>>(content) ?? new();
+        return JsonUtils.Deserialize<List<FailedRequest>>(content) ?? [];
     }
 
     public void Dispose()

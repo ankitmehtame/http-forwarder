@@ -56,8 +56,8 @@ namespace http_forwarder_app.Core
             var rulesJsonFilePath = Configuration.GetConfFilePath("rules.json");
             _logger.LogInformation("Reading rules file from {rulesJsonFilePath}", rulesJsonFilePath);
             var rulesJson = File.ReadAllText(rulesJsonFilePath);
-            var rules = JsonUtils.Deserialize<ForwardingRule[]>(rulesJson) ?? [];
-            return rules;
+            var rules = JsonUtils.Deserialize<ForwardingRuleDto[]>(rulesJson) ?? [];
+            return rules.ToForwardingRules();
         }
 
         private void SetState()

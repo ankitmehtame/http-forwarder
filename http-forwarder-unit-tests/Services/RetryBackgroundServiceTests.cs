@@ -249,12 +249,14 @@ public class RetryBackgroundServiceTests
     private static ForwardingRule CreateRule()
     {
         return new ForwardingRule(
-            Method: "POST",
-            Event: "test-event",
-            TargetUrl: "http://test.com",
-            HasContent: true,
-            Content: "test-content",
-            Retry: RuleRetry.AllowedDefault);
+            method: "POST",
+            @event: "test-event",
+            targetUrl: "http://test.com") with
+        {
+            HasContent = true,
+            Content = "test-content",
+            Retry = RuleRetry.AllowedDefault
+        };
     }
 
     // Helper class to expose ExecuteAsync for testing

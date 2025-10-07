@@ -10,9 +10,9 @@ public class ForwardingRuleTests
     {
         // Arrange
         var rule = new ForwardingRule(
-            Method: "GET",
-            Event: "test-event",
-            TargetUrl: "http://example.com"
+            method: "GET",
+            @event: "test-event",
+            targetUrl: "http://example.com"
         );
 
         // Act
@@ -27,19 +27,22 @@ public class ForwardingRuleTests
     {
         // Arrange
         var rule = new ForwardingRule(
-            Method: "POST",
-            Event: "complex-event",
-            TargetUrl: "http://api.example.com",
-            Headers: new Dictionary<string, string> { { "X-Test", "true" }, { "Content-Type", "application/json" } },
-            Tags: new HashSet<string> { "local", "test" }
-        );
+            method: "POST",
+            @event: "complex-event",
+            targetUrl: "http://api.example.com")
+        {
+            Headers = new Dictionary<string, string> { { "X-Test", "true" }, { "Content-Type", "application/json" } },
+            Tags = ["local", "test"]
+        };
 
         // Act
         var result = rule.ToString();
 
         // Assert
+        rule.Headers.ShouldNotBeEmpty();
+        rule.Headers.Count.ShouldBe(2);
         result.ShouldStartWith("Method = POST, Event = complex-event, TargetUrl = http://api.example.com, HasContent = True, Content = , IgnoreSslError = False, ");
-        result.ShouldContain("Headers = [X-Test=true, Content-Type=application/json]");
+        result.ShouldContain("Headers = [X-Test=true, Content-Type=application/json]", customMessage: result);
         result.ShouldContain("Tags = [local, test]");
         result.ShouldEndWith(", Retry = { Allow = False, Expiry = 23:59:59 }");
     }
@@ -49,11 +52,12 @@ public class ForwardingRuleTests
     {
         // Arrange
         var rule = new ForwardingRule(
-            Method: "PUT",
-            Event: "retry-event",
-            TargetUrl: "http://another.example.com",
-            Retry: RuleRetry.AllowedDefault
-        );
+            method: "PUT",
+            @event: "retry-event",
+            targetUrl: "http://another.example.com")
+        {
+            Retry = RuleRetry.AllowedDefault
+        };
 
         // Act
         var result = rule.ToString();

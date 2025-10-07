@@ -129,14 +129,12 @@ public class FailedRequestStorageTests : IDisposable
 
     private FailedRequest CreateTestRequest(DateTimeOffset? nextAttempt = null)
     {
-        var rule = new ForwardingRule(
-            Method: "POST",
-            Event: "test-event",
-            TargetUrl: "http://test.com",
-            HasContent: true,
-            Content: "test-content",
-            Retry: RuleRetry.AllowedDefault
-        );
+        ForwardingRule rule = new(method: "POST", @event: "test-event", targetUrl: "http://test.com")
+        {
+            HasContent = true,
+            Content = "test-content",
+            Retry = RuleRetry.AllowedDefault
+        };
 
         return new FailedRequest(
             Id: Guid.NewGuid(),
