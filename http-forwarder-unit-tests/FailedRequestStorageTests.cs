@@ -8,6 +8,7 @@ using Shouldly;
 using Microsoft.Extensions.Internal;
 using Microsoft.AspNetCore.Mvc.Diagnostics;
 using http_forwarder_app;
+using Microsoft.Extensions.Logging;
 
 namespace http_forwarder_unit_tests;
 
@@ -21,6 +22,7 @@ public class FailedRequestStorageTests : IDisposable
 
     public FailedRequestStorageTests()
     {
+        var mockStorageLogger = new Mock<ILogger<FailedRequestStorage>>(MockBehavior.Loose);
         var configMock = new Mock<IConfiguration>();
         _storageDir = Path.Combine(Path.GetTempPath(), $"http_forwarder_test_{Guid.NewGuid()}");
         var storageDir = _storageDir;
@@ -34,7 +36,7 @@ public class FailedRequestStorageTests : IDisposable
         var mockClock = new Mock<ISystemClock>();
         _startTime = DateTimeOffset.UtcNow;
         mockClock.Setup(x => x.UtcNow).Returns(_startTime);
-        _storage = new FailedRequestStorage(configMock.Object, mockClock.Object);
+        _storage = new FailedRequestStorage(configMock.Object, mockClock.Object, mockStorageLogger.Object);
         _testFilePath = Path.Combine(_storageDir, "storage.json");
     }
 
@@ -150,7 +152,7 @@ public class FailedRequestStorageTests : IDisposable
     }
 
     public void Dispose()
-    {   
+    {
         if (Directory.Exists(_storageDir))
         {
             Directory.Delete(_storageDir, true);

@@ -1,4 +1,6 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -36,9 +38,25 @@ namespace http_forwarder_app.Core
 
         public static string GetStorageFilePath(this IConfiguration configuration)
         {
+            const string storageFileName = "storage.json";
+            var storagePath = configuration.GetValidStorageDirPath();
+            var filePath = GetFilePath(Path.Combine(storagePath, storageFileName));
+            filePath ??= Path.Combine(storagePath, storageFileName);
+            return filePath;
+        }
+
+        public static string[] GetArchiveFilePaths(this IConfiguration configuration)
+        {
             var pathForConf = configuration.GetValidStorageDirPath();
-            var filePath = GetFilePath(Path.Combine(pathForConf, "storage.json"));
-            filePath ??= Path.Combine(pathForConf, "storage.json");
+            return Directory.GetFiles(pathForConf, "archive-*.json", SearchOption.TopDirectoryOnly);
+        }
+
+        public static string GetArchiveFilePath(this IConfiguration configuration, Guid requestId)
+        {
+            var archiveFileName = $"archive-{requestId}.json";
+            var storagePath = configuration.GetValidStorageDirPath();
+            var filePath = GetFilePath(Path.Combine(storagePath, archiveFileName));
+            filePath ??= Path.Combine(storagePath, archiveFileName);
             return filePath;
         }
 

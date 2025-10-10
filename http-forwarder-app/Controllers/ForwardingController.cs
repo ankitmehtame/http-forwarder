@@ -209,7 +209,7 @@ namespace http_forwarder_app.Controllers
                 FirstAttempt: creationTime,
                 LastAttempt: creationTime,
                 AttemptCount: 1,
-                NextAttempt: creationTime.Add(RetryBackgroundService.RetryIntervalMin),
+                NextAttempt: creationTime.Add(Constants.RetryIntervalMin),
                 LastError: error
             );
 

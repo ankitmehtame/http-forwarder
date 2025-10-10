@@ -9,6 +9,7 @@ using http_forwarder_app.Models;
 using http_forwarder_app.Extensions;
 using http_forwarder_app.Core;
 using Microsoft.Extensions.Configuration;
+using System.Reflection.Metadata;
 
 namespace http_forwarder_app.Services;
 
@@ -19,11 +20,8 @@ public class RetryBackgroundService : BackgroundService
     private readonly ITimeDelayService _timeDelayService;
     private readonly ISystemClock _clock;
     private readonly ILogger<RetryBackgroundService> _logger;
-    internal static readonly TimeSpan RetryIntervalMin = TimeSpan.FromSeconds(30);
-    internal static readonly TimeSpan RetryIntervalMax = TimeSpan.FromHours(1);
     private readonly int _maxConcurrency;
     private readonly bool _backgroundMonitoringEnabled;
-    internal static readonly TimeSpan RetryExpiry = TimeSpan.FromHours(24);
 
     private CancellationTokenSource _waitTokenSource;
 
@@ -119,7 +117,7 @@ public class RetryBackgroundService : BackgroundService
         {
             AttemptCount = request.AttemptCount + 1,
             LastAttempt = now,
-            NextAttempt = now.Add(request.AttemptCount.CalculateExponentialDelay(RetryIntervalMin, RetryIntervalMax))
+            NextAttempt = now.Add(request.AttemptCount.CalculateExponentialDelay(Constants.RetryIntervalMin, Constants.RetryIntervalMax))
         };
 
         if (nextAttempt.NextAttempt > request.FirstAttempt.Add(GetValidExpiry(retry)))
@@ -164,7 +162,7 @@ public class RetryBackgroundService : BackgroundService
             _logger.LogInformation("Retry background monitoring is not enabled");
             return;
         }
-        var maxWait = RetryIntervalMax;
+        var maxWait = Constants.RetryIntervalMax;
         var nextAttempt = DateTimeOffset.MaxValue;
         int currentHash = 0;
         _storage.StorageUpdated -= OnStorageUpdated;
@@ -230,6 +228,6 @@ public class RetryBackgroundService : BackgroundService
 
     private static TimeSpan GetValidExpiry(RuleRetry retry)
     {
-        return retry.Expiry > RetryExpiry ? RetryExpiry : retry.Expiry;
+        return retry.Expiry > Constants.RetryExpiry ? Constants.RetryExpiry : retry.Expiry;
     }
 }
