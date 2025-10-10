@@ -64,21 +64,72 @@ public class ForwarderAcceptanceTests(CustomWebApplicationFactory<Program> facto
     }
 
     [Fact]
-    public async Task PostFailShouldReturnAcceptedForRetry()
+    public async Task PostFailWithPredefinedContentShouldRetry()
     {
+        var storage = _factory.Services.GetRequiredService<IFailedRequestStorage>();
+        storage.GetAllRequests().ForEach(r => storage.Remove(r.Id));
+
+        var requestCapturingContext = _factory.Services.GetRequiredService<RequestCapturingContext>();
+        while (requestCapturingContext.Requests.TryDequeue(out _)) ;
+
         var client = _factory.CreateClient();
 
-        var response = await client.PostAsync("/forward/ping-fail", new StringContent("""{}"""));
+        var response = await client.PostAsync("/forward/ping-fail", new StringContent("\"{}\""));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
         var responseText = await response.Content.ReadAsStringAsync();
         responseText.ShouldStartWith("Request accepted for retry - ");
+        requestCapturingContext.Requests.Count.ShouldBe(1);
+        requestCapturingContext.Requests.First().RequestBody.ShouldBe("""{"message": "FAIL"}""");
 
         var retryService = _factory.Services.GetRequiredService<ManualRetryBackgroundService>() ?? throw new NullReferenceException($"Unable to get {nameof(ManualRetryBackgroundService)} from service provider");
         var clock = (FakeClock)_factory.Services.GetRequiredService<ISystemClock>();
-        clock.AddTime(TimeSpan.FromMinutes(1));
+        clock.AddTime(TimeSpan.FromSeconds(31));
         await retryService.ProcessPendingRequestsAsync(clock.UtcNow, CancellationToken.None);
 
+        requestCapturingContext.Requests.Count.ShouldBe(2);
+        requestCapturingContext.Requests.Last().RequestBody.ShouldBe("""{"message": "FAIL"}""");
 
+        clock.AddTime(TimeSpan.FromSeconds(61));
+        await retryService.ProcessPendingRequestsAsync(clock.UtcNow, CancellationToken.None);
+
+        requestCapturingContext.Requests.Count.ShouldBe(3);
+        requestCapturingContext.Requests.Last().RequestBody.ShouldBe("""{"message": "FAIL"}""");
+    }
+
+
+
+    [Fact]
+    public async Task PostFailWithProvidedContentShouldRetry()
+    {
+        var storage = _factory.Services.GetRequiredService<IFailedRequestStorage>();
+        storage.GetAllRequests().ForEach(r => storage.Remove(r.Id));
+
+        var requestCapturingContext = _factory.Services.GetRequiredService<RequestCapturingContext>();
+        while (requestCapturingContext.Requests.TryDequeue(out _)) ;
+
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsync("/forward/ping-retry", new StringContent("""{"message": "FAIL"}"""));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        var responseText = await response.Content.ReadAsStringAsync();
+        responseText.ShouldStartWith("Request accepted for retry - ");
+        requestCapturingContext.Requests.Count.ShouldBe(1);
+        requestCapturingContext.Requests.First().RequestBody.ShouldBe("""{"message": "FAIL"}""");
+
+        var retryService = _factory.Services.GetRequiredService<ManualRetryBackgroundService>() ?? throw new NullReferenceException($"Unable to get {nameof(ManualRetryBackgroundService)} from service provider");
+        var clock = (FakeClock)_factory.Services.GetRequiredService<ISystemClock>();
+        clock.AddTime(TimeSpan.FromSeconds(31));
+        await retryService.ProcessPendingRequestsAsync(clock.UtcNow, CancellationToken.None);
+
+        requestCapturingContext.Requests.Count.ShouldBe(2);
+        requestCapturingContext.Requests.Last().RequestBody.ShouldBe("""{"message": "FAIL"}""");
+
+        clock.AddTime(TimeSpan.FromSeconds(61));
+        await retryService.ProcessPendingRequestsAsync(clock.UtcNow, CancellationToken.None);
+
+        requestCapturingContext.Requests.Count.ShouldBe(3);
+        requestCapturingContext.Requests.Last().RequestBody.ShouldBe("""{"message": "FAIL"}""");
     }
 }

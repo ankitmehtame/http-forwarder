@@ -26,7 +26,13 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
         {
             s.Remove(s.Single(x => x.ServiceType == typeof(ISystemClock)));
             s.AddSingleton<ISystemClock, FakeClock>();
-            s.AddTransient<HttpMessageHandlerBuilder>(sp => new TestServerHttpMessageHandlerBuilder(Server));
+            s.AddSingleton<RequestCapturingContext>();
+            s.AddTransient<RequestCapturingHandler>();
+            s.ConfigureHttpClientDefaults(b =>
+            {
+                b.ConfigurePrimaryHttpMessageHandler(() => Server.CreateHandler());
+                b.AddHttpMessageHandler<RequestCapturingHandler>();
+            });
             s.Remove(s.Single(x => x.ImplementationType == typeof(PublisherClientFactory)));
             s.AddSingleton<IPublisherClientFactory, StubPublisherClientFactory>();
             s.Remove(s.Single(x => x.ImplementationType == typeof(RetryBackgroundService)));
