@@ -25,4 +25,6 @@ public static class Constants
     public const string STORAGE_DIR_PATH = "STORAGE_DIR_PATH";
 
     public const string RETRY_POLICY_MAX_CONCURRENCY = "RETRY_POLICY_MAX_CONCURRENCY";
+
+    public const string RETRY_BACKGROUND_MONITORING_ENABLED = "RETRY_BACKGROUND_MONITORING_ENABLED";
 }

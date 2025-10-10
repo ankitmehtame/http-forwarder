@@ -3,6 +3,7 @@ using http_forwarder_app.Cloud;
 using http_forwarder_app.Core;
 using http_forwarder_app.Models;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Internal;
 using Moq;
 using Shouldly;
 using System.Net;
@@ -72,5 +73,12 @@ public class ForwarderAcceptanceTests(CustomWebApplicationFactory<Program> facto
         response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
         var responseText = await response.Content.ReadAsStringAsync();
         responseText.ShouldStartWith("Request accepted for retry - ");
+
+        var retryService = _factory.Services.GetRequiredService<ManualRetryBackgroundService>() ?? throw new NullReferenceException($"Unable to get {nameof(ManualRetryBackgroundService)} from service provider");
+        var clock = (FakeClock)_factory.Services.GetRequiredService<ISystemClock>();
+        clock.AddTime(TimeSpan.FromMinutes(1));
+        await retryService.ProcessPendingRequestsAsync(clock.UtcNow, CancellationToken.None);
+
+
     }
 }

@@ -64,4 +64,9 @@ public static class ConfigurationExtensions
         return configuration.GetValue<int>(Constants.RETRY_POLICY_MAX_CONCURRENCY, 4);
     }
 
+    public static bool IsRetryBackgroundMonitoringEnabled(this IConfiguration configuration)
+    {
+        return configuration.GetValue<bool>(Constants.RETRY_BACKGROUND_MONITORING_ENABLED, true);
+    }
+
 }

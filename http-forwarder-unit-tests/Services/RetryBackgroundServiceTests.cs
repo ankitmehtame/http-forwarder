@@ -34,10 +34,14 @@ public class RetryBackgroundServiceTests
         _startTime = DateTimeOffset.UtcNow;
 
         _clockMock.Setup(x => x.UtcNow).Returns(_startTime);
-        var configSectionMock = new Mock<IConfigurationSection>(MockBehavior.Loose);
-        configSectionMock.Setup(x => x.Value).Returns("1");
+        var configRetryPolicyMaxConcurrencyMock = new Mock<IConfigurationSection>(MockBehavior.Loose);
+        configRetryPolicyMaxConcurrencyMock.Setup(x => x.Value).Returns("1");
+        var configRetryBackgroundMonitoringEnabledMock = new Mock<IConfigurationSection>(MockBehavior.Loose);
+        configRetryBackgroundMonitoringEnabledMock.Setup(x => x.Value).Returns("true");
         _configMock.Setup(x => x.GetSection(Constants.RETRY_POLICY_MAX_CONCURRENCY))
-            .Returns(configSectionMock.Object);
+            .Returns(configRetryPolicyMaxConcurrencyMock.Object);
+        _configMock.Setup(x => x.GetSection(Constants.RETRY_BACKGROUND_MONITORING_ENABLED))
+            .Returns(configRetryBackgroundMonitoringEnabledMock.Object);
 
         _service = new TestableRetryBackgroundService(
             _storageMock.Object,

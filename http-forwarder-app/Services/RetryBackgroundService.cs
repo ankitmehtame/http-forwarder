@@ -22,6 +22,7 @@ public class RetryBackgroundService : BackgroundService
     internal static readonly TimeSpan RetryIntervalMin = TimeSpan.FromSeconds(30);
     internal static readonly TimeSpan RetryIntervalMax = TimeSpan.FromHours(1);
     private readonly int _maxConcurrency;
+    private readonly bool _backgroundMonitoringEnabled;
     internal static readonly TimeSpan RetryExpiry = TimeSpan.FromHours(24);
 
     private CancellationTokenSource _waitTokenSource;
@@ -41,6 +42,7 @@ public class RetryBackgroundService : BackgroundService
         _clock = clock;
         _logger = logger;
         _maxConcurrency = configuration.GetRetryMaxConcurrency();
+        _backgroundMonitoringEnabled = configuration.IsRetryBackgroundMonitoringEnabled();
         _waitTokenSource = new CancellationTokenSource();
     }
 
@@ -157,6 +159,11 @@ public class RetryBackgroundService : BackgroundService
 
     private async Task RunAsync(CancellationToken stoppingToken)
     {
+        if (!_backgroundMonitoringEnabled)
+        {
+            _logger.LogInformation("Retry background monitoring is not enabled");
+            return;
+        }
         var maxWait = RetryIntervalMax;
         var nextAttempt = DateTimeOffset.MaxValue;
         int currentHash = 0;
