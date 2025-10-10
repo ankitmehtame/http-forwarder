@@ -22,6 +22,7 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
     private int _storageHash = 0;
     private DateTimeOffset _lastCleanup = DateTimeOffset.MinValue;
     private readonly ILogger<FailedRequestStorage> _logger;
+    private readonly object _archiveLock = new();
 
 
 
@@ -119,7 +120,7 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
             if (request != null)
             {
                 var archiveFile = _configuration.GetArchiveFilePath(request.Id);
-                var requestContent = JsonUtils.Serialize(requests, true);
+                var requestContent = JsonUtils.Serialize(request, true);
                 _logger.LogInformation("Archiving request {requestId} with event {eventName} to {archiveFile}", requestId, request.Rule.Event, Path.GetFileName(archiveFile));
                 File.WriteAllText(archiveFile, requestContent);
             }
@@ -130,34 +131,47 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
         }
     }
 
-    private void ScheduleCleanup()
+    public void ScheduleCleanup(bool force)
     {
-        var now = _clock.UtcNow;
-        if (now < (_lastCleanup + TimeSpan.FromHours(1))) return;
-        RemoveOldArchives();
+        var acquiredLock = Monitor.TryEnter(_archiveLock);
+        if (!acquiredLock) return;
+        try
+        {
+            var now = _clock.UtcNow;
+            if (!force && now < (_lastCleanup + TimeSpan.FromHours(1))) return;
+            RemoveOldArchives();
+            _lastCleanup = now;
+        }
+        finally
+        {
+            if (acquiredLock) Monitor.Exit(_archiveLock);
+        }
     }
 
     private void RemoveOldArchives()
     {
-        var archives = _configuration.GetArchiveFilePaths();
-        foreach (var archivePath in archives)
+        lock (_archiveLock)
         {
-            var archiveContent = File.ReadAllText(archivePath);
-            try
+            var archives = _configuration.GetArchiveFilePaths();
+            foreach (var archivePath in archives)
             {
-                var now = _clock.UtcNow;
-                var archive = JsonUtils.Deserialize<FailedRequest>(archiveContent)!;
-                var expiry = archive.FirstAttempt.Add(Constants.RetryExpiry);
-                if (now >= expiry)
+                var archiveContent = File.ReadAllText(archivePath);
+                try
                 {
-                    _logger.LogInformation("Removing archive {archiveFile} as it has expired", Path.GetFileName(archivePath));
+                    var now = _clock.UtcNow;
+                    var archive = JsonUtils.Deserialize<FailedRequest>(archiveContent)!;
+                    var expiry = archive.FirstAttempt.Add(Constants.RetryExpiry);
+                    if (now >= expiry)
+                    {
+                        _logger.LogInformation("Removing archive {archiveFile} as it has expired", Path.GetFileName(archivePath));
+                        File.Delete(archivePath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogInformation("Removing archive {archiveFile} as it can't be loaded - {ex}", Path.GetFileName(archivePath), ex);
                     File.Delete(archivePath);
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogInformation("Removing archive {archiveFile} as it can't be loaded - {ex}", Path.GetFileName(archivePath), ex);
-                File.Delete(archivePath);
             }
         }
     }
@@ -170,7 +184,7 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
             File.WriteAllText(_storageFile, JsonUtils.Serialize(newContent, true));
             return newContent;
         }
-        Task.Run(ScheduleCleanup);
+        Task.Run(() => ScheduleCleanup(false));
         var content = File.ReadAllText(_storageFile);
         _storageHash = content.GetHashCode();
         return JsonUtils.Deserialize<List<FailedRequest>>(content) ?? [];

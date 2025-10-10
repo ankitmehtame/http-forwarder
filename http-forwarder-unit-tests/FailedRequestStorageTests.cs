@@ -6,9 +6,9 @@ using http_forwarder_app.Models;
 using http_forwarder_app.Services;
 using Shouldly;
 using Microsoft.Extensions.Internal;
-using Microsoft.AspNetCore.Mvc.Diagnostics;
 using http_forwarder_app;
 using Microsoft.Extensions.Logging;
+using http_forwarder_app.Core;
 
 namespace http_forwarder_unit_tests;
 
@@ -18,6 +18,7 @@ public class FailedRequestStorageTests : IDisposable
     private readonly string _testFilePath;
     private readonly FailedRequestStorage _storage;
     private readonly DateTimeOffset _startTime;
+    private readonly Mock<ISystemClock> _mockClock;
 
 
     public FailedRequestStorageTests()
@@ -33,10 +34,10 @@ public class FailedRequestStorageTests : IDisposable
         configMock.Setup(x => x.GetSection(It.Is<string>(s => s.EndsWith("GetAppRoot")))).Returns(configSectionMock.Object);
         configMock.Setup(x => x.GetSection(Constants.STORAGE_DIR_PATH)).Returns(configSectionMock.Object);
 
-        var mockClock = new Mock<ISystemClock>();
+        _mockClock = new Mock<ISystemClock>();
         _startTime = DateTimeOffset.UtcNow;
-        mockClock.Setup(x => x.UtcNow).Returns(_startTime);
-        _storage = new FailedRequestStorage(configMock.Object, mockClock.Object, mockStorageLogger.Object);
+        _mockClock.Setup(x => x.UtcNow).Returns(_startTime);
+        _storage = new FailedRequestStorage(configMock.Object, _mockClock.Object, mockStorageLogger.Object);
         _testFilePath = Path.Combine(_storageDir, "storage.json");
     }
 
@@ -157,5 +158,88 @@ public class FailedRequestStorageTests : IDisposable
         {
             Directory.Delete(_storageDir, true);
         }
+    }
+
+    [Fact]
+    public void Remove_ShouldCreateArchiveFile()
+    {
+        // Arrange
+        var request = CreateTestRequest();
+        _storage.Store(request);
+        var archiveFilePath = Path.Combine(_storageDir, $"archive-{request.Id}.json");
+
+        // Act
+        _storage.Remove(request.Id);
+
+        // Assert
+        File.Exists(archiveFilePath).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Remove_ShouldStoreCorrectContentInArchiveFile()
+    {
+        // Arrange
+        var request = CreateTestRequest();
+        _storage.Store(request);
+        var archiveFilePath = Path.Combine(_storageDir, $"archive-{request.Id}.json");
+
+        // Act
+        _storage.Remove(request.Id);
+
+        // Assert
+        var archiveContent = File.ReadAllText(archiveFilePath);
+        var archivedRequest = JsonUtils.Deserialize<FailedRequest>(archiveContent);
+        archivedRequest.ShouldNotBeNull();
+        archivedRequest.Id.ShouldBe(request.Id);
+    }
+
+    [Fact]
+    public void RemoveOldArchives_ShouldRemoveExpiredArchives()
+    {
+        // Arrange
+        var expiredRequest = CreateTestRequest(_startTime);
+        var expiredArchiveFile = Path.Combine(_storageDir, $"archive-{expiredRequest.Id}.json");
+        _storage.Store(expiredRequest);
+        _storage.Remove(expiredRequest.Id);
+        _mockClock.Setup(x => x.UtcNow).Returns(_startTime + Constants.RetryExpiry + TimeSpan.FromMinutes(1));
+
+        // Act
+        bool archived = File.Exists(expiredArchiveFile);
+        _storage.ScheduleCleanup(true);
+
+        // Assert
+        archived.ShouldBeTrue();
+        File.Exists(expiredArchiveFile).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void RemoveOldArchives_ShouldKeepNonExpiredArchives()
+    {
+        // Arrange
+        var nonExpiredRequest = CreateTestRequest(_startTime);
+        var nonExpiredArchiveFile = Path.Combine(_storageDir, $"archive-{nonExpiredRequest.Id}.json");
+        _storage.Store(nonExpiredRequest);
+        _storage.Remove(nonExpiredRequest.Id);
+        _mockClock.Setup(x => x.UtcNow).Returns(_startTime + Constants.RetryExpiry - TimeSpan.FromMinutes(5));
+
+        // Act
+        _storage.ScheduleCleanup(true); // This triggers the cleanup
+
+        // Assert
+        File.Exists(nonExpiredArchiveFile).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void RemoveOldArchives_ShouldRemoveUnloadableArchives()
+    {
+        // Arrange
+        var unloadableArchiveFile = Path.Combine(_storageDir, $"archive-{Guid.NewGuid()}.json");
+        File.WriteAllText(unloadableArchiveFile, "invalid json");
+
+        // Act
+        _storage.ScheduleCleanup(true); // This triggers the cleanup
+
+        // Assert
+        File.Exists(unloadableArchiveFile).ShouldBeFalse();
     }
 }

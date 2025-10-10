@@ -47,8 +47,8 @@ namespace http_forwarder_app.Core
 
         public static string[] GetArchiveFilePaths(this IConfiguration configuration)
         {
-            var pathForConf = configuration.GetValidStorageDirPath();
-            return Directory.GetFiles(pathForConf, "archive-*.json", SearchOption.TopDirectoryOnly);
+            var archivePath = configuration.GetValidStorageDirPath();
+            return Directory.GetFiles(archivePath, "archive-*.json", SearchOption.TopDirectoryOnly);
         }
 
         public static string GetArchiveFilePath(this IConfiguration configuration, Guid requestId)
