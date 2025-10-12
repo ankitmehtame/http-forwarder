@@ -86,6 +86,7 @@ logger.LogInformation("Environment is {environmentName}, location is {locationTa
      app.Environment.EnvironmentName, app.Configuration.GetLocationTag(), DateTimeOffset.Now.ToString("o"));
 
 logger.LogInformation("Info version is {InfoVersion}", VersionUtils.InfoVersion);
+logger.LogDebug("TZ is {TZ}", TimeZoneInfo.Local.DisplayName);
 
 var forwardingRulesReader = app.Services.GetRequiredService<ForwardingRulesReader>();
 forwardingRulesReader.Init();

@@ -70,4 +70,57 @@ public class ForwardingRuleTests
         // Assert
         result.ShouldBe("Method = PUT, Event = retry-event, TargetUrl = http://another.example.com, HasContent = True, Content = , IgnoreSslError = False, Headers = [], Tags = [], Retry = { Allow = True, Expiry = 23:59:59 }");
     }
+
+    [Fact]
+    [Repeat(10)]
+    public void Minimal_ToString_WithTags_FormatsCorrectly()
+    {
+        // Arrange
+        var rule = new ForwardingRule(
+            method: "POST",
+            @event: "complex-event",
+            targetUrl: "http://api.example.com")
+        {
+            Headers = new Dictionary<string, string> { { "X-Test", "true" }, { "Content-Type", "application/json" } }.ToImmutableDictionary(),
+            Tags = ["local", "test"]
+        }.ToMinimal();
+
+        // Act
+        var result = rule.ToString();
+
+        // Assert
+        result.ShouldBe("Method = POST, Event = complex-event, Tags = [local, test]");
+    }
+
+
+
+    [Fact]
+    [Repeat(10)]
+    public void MinimalEnumerable_ToString_FormatsCorrectly()
+    {
+        // Arrange
+        var rule1 = new ForwardingRule(
+            method: "POST",
+            @event: "complex-event",
+            targetUrl: "http://api.example.com")
+        {
+            Headers = new Dictionary<string, string> { { "X-Test", "true" }, { "Content-Type", "application/json" } }.ToImmutableDictionary(),
+            Tags = ["local", "test"]
+        };
+        var rule2 = new ForwardingRule(
+            method: "GET",
+            @event: "complex-get-event",
+            targetUrl: "http://api2.example.com")
+        {
+            Headers = new Dictionary<string, string> { { "X-Test2", "false" } }.ToImmutableDictionary(),
+            Tags = ["local", "cloud"]
+        };
+        IEnumerable<ForwardingRule> rules = [rule1, rule2];
+
+        // Act
+        var result = rules.PrintMinimal();
+
+        // Assert
+        result.ShouldBe("[{ Method = POST, Event = complex-event, Tags = [local, test] }, { Method = GET, Event = complex-get-event, Tags = [cloud, local] }]");
+    }
 }

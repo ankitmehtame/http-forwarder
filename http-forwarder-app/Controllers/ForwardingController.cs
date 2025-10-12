@@ -219,7 +219,7 @@ namespace http_forwarder_app.Controllers
                 failedRequest.NextAttempt);
             _failedRequestStorage.Store(failedRequest);
             Response.StatusCode = StatusCodes.Status202Accepted;
-            await Response.WriteAsync(string.Format(CultureInfo.InvariantCulture, "Request accepted for retry - {0}", failedRequest.Id));
+            await Response.WriteAsync(string.Format(CultureInfo.InvariantCulture, "Request {0} accepted for retry - {1} at {2}", failedRequest.Rule.Event, failedRequest.Id, failedRequest.FirstAttempt.ToLocalTime()));
         }
 
         private static string GetHostUrl(HttpRequest request)

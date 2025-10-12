@@ -101,14 +101,17 @@ public class PrettyPrintDictionary(IDictionary<string, string> Pairs)
 public record class ForwardingRuleMinimal(string Method, string Event, ImmutableHashSet<string> Tags)
 {
     [JsonIgnore]
-    public string __PrettyTags { get; init; } = "[" + string.Join(", ", Tags ?? []) + "]";
+    public string __PrettyTags { get; init; } = "[" + string.Join(", ", Tags.Order(StringComparer.OrdinalIgnoreCase)) + "]";
 
     public override string ToString()
     {
+        /*
+        Tags = System.Collections.Immutable.ImmutableHashSet`1[System.String], __PrettyTags = [local, test]
+        */
         var builder = new StringBuilder();
         PrintMembers(builder);
-        builder.Replace($", {nameof(Tags)} = System.Collections.Generic.HashSet`1[System.String]", string.Empty);
-        builder.Replace($", {nameof(__PrettyTags)} = System.Collections.Immutable.ImmutableHashSet`1[System.String]", $", {nameof(Tags)} = ");
+        builder.Replace($", {nameof(Tags)} = System.Collections.Immutable.ImmutableHashSet`1[System.String]", string.Empty);
+        builder.Replace($", {nameof(__PrettyTags)} = ", $", {nameof(Tags)} = ");
 
         return builder.ToString();
     }
@@ -156,5 +159,10 @@ public static class ForwardingRuleExtensions
     public static ForwardingRuleDto ToDto(this ForwardingRule rule)
     {
         return new ForwardingRuleDto(rule);
+    }
+
+    public static string PrintMinimal(this IEnumerable<ForwardingRule> rules)
+    {
+        return "[" + string.Join(", ", rules.Select(r => "{ " + r.ToMinimal().ToString() + " }")) + "]";
     }
 }

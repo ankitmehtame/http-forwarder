@@ -2,6 +2,7 @@
 using http_forwarder_app.Cloud;
 using http_forwarder_app.Core;
 using http_forwarder_app.Models;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Internal;
 using Moq;
@@ -66,8 +67,9 @@ public class ForwarderAcceptanceTests(CustomWebApplicationFactory<Program> facto
     [Fact]
     public async Task PostFailWithPredefinedContentShouldRetry()
     {
-        var storage = _factory.Services.GetRequiredService<IFailedRequestStorage>();
-        storage.GetAllRequests().ForEach(r => storage.Remove(r.Id));
+        var config = _factory.Services.GetRequiredService<IConfiguration>();
+        var storageFile = config.GetStorageFilePath();
+        if (File.Exists(storageFile)) File.Delete(storageFile);
 
         var requestCapturingContext = _factory.Services.GetRequiredService<RequestCapturingContext>();
         while (requestCapturingContext.Requests.TryDequeue(out _)) ;
@@ -78,7 +80,8 @@ public class ForwarderAcceptanceTests(CustomWebApplicationFactory<Program> facto
 
         response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
         var responseText = await response.Content.ReadAsStringAsync();
-        responseText.ShouldStartWith("Request accepted for retry - ");
+        responseText.ShouldStartWith("Request ping-fail accepted for retry - ");
+        responseText.ShouldContain(" at ");
         requestCapturingContext.Requests.Count.ShouldBe(1);
         requestCapturingContext.Requests.First().RequestBody.ShouldBe("""{"message": "FAIL"}""");
 
@@ -97,13 +100,12 @@ public class ForwarderAcceptanceTests(CustomWebApplicationFactory<Program> facto
         requestCapturingContext.Requests.Last().RequestBody.ShouldBe("""{"message": "FAIL"}""");
     }
 
-
-
     [Fact]
     public async Task PostFailWithProvidedContentShouldRetry()
     {
-        var storage = _factory.Services.GetRequiredService<IFailedRequestStorage>();
-        storage.GetAllRequests().ForEach(r => storage.Remove(r.Id));
+        var config = _factory.Services.GetRequiredService<IConfiguration>();
+        var storageFile = config.GetStorageFilePath();
+        if (File.Exists(storageFile)) File.Delete(storageFile);
 
         var requestCapturingContext = _factory.Services.GetRequiredService<RequestCapturingContext>();
         while (requestCapturingContext.Requests.TryDequeue(out _)) ;
@@ -114,7 +116,8 @@ public class ForwarderAcceptanceTests(CustomWebApplicationFactory<Program> facto
 
         response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
         var responseText = await response.Content.ReadAsStringAsync();
-        responseText.ShouldStartWith("Request accepted for retry - ");
+        responseText.ShouldStartWith("Request ping-retry accepted for retry - ");
+        responseText.ShouldContain(" at ");
         requestCapturingContext.Requests.Count.ShouldBe(1);
         requestCapturingContext.Requests.First().RequestBody.ShouldBe("""{"message": "FAIL"}""");
 
