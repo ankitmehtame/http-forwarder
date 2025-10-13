@@ -22,7 +22,8 @@ namespace http_forwarder_app.Core
             var client = httpClientFactory.CreateClient(ignoreSslError ? Constants.HTTP_CLIENT_IGNORE_SSL_ERROR : eventName);
             AddHeaders(client, headers);
             var contentType = SafeGetContentType(headers);
-            var finalContent = string.IsNullOrEmpty(contentType) ? new StringContent(content ?? string.Empty) : new StringContent(content ?? string.Empty, System.Text.Encoding.UTF8, contentType);
+            var mediaTypeHeaderValue = contentType.ToMediaTypeHeaderValue();
+            var finalContent = new StringContent(content ?? string.Empty, mediaTypeHeaderValue);
             logger.LogDebug("Calling POST {url} with body {body} and headers {headers}", targetUrl, content ?? string.Empty, new PrettyPrintDictionary(headers));
             var resp = await client.PostAsync(targetUrl, finalContent);
             return resp;
@@ -42,7 +43,8 @@ namespace http_forwarder_app.Core
             var client = httpClientFactory.CreateClient(ignoreSslError ? Constants.HTTP_CLIENT_IGNORE_SSL_ERROR : eventName);
             AddHeaders(client, headers);
             var contentType = SafeGetContentType(headers);
-            var finalContent = string.IsNullOrEmpty(contentType) ? new StringContent(content ?? string.Empty) : new StringContent(content ?? string.Empty, System.Text.Encoding.UTF8, contentType);
+            var mediaTypeHeaderValue = contentType.ToMediaTypeHeaderValue();
+            var finalContent = new StringContent(content ?? string.Empty, mediaTypeHeaderValue);
             logger.LogDebug("Calling PUT {url} with body {body} and headers {headers}", targetUrl, content ?? string.Empty, new PrettyPrintDictionary(headers));
             var resp = await client.PutAsync(targetUrl, finalContent);
             return resp;

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Internal;
 using http_forwarder_app;
 using Microsoft.Extensions.Logging;
 using http_forwarder_app.Core;
+using System.Collections.Immutable;
 
 namespace http_forwarder_unit_tests;
 
@@ -144,6 +145,7 @@ public class FailedRequestStorageTests : IDisposable
             Rule: rule.ToMinimal(),
             RequestHostUrl: "http://locahost:5000",
             RequestBody: "test-body",
+            RequestHeaders: new Dictionary<string, string> { { "X-Test", "true" }, { "Content-Type", "application/json" } }.ToImmutableSortedDictionary(),
             FirstAttempt: _startTime,
             LastAttempt: _startTime,
             AttemptCount: 1,

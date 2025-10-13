@@ -78,8 +78,10 @@ public record class ForwardingRule
     }
 }
 
-public class PrettyPrintDictionary(IDictionary<string, string> Pairs)
+public class PrettyPrintDictionary(IDictionary<string, string> pairs)
 {
+    public IDictionary<string, string> Pairs { get; init; } = pairs;
+
     public override string ToString()
     {
         var builder = new StringBuilder();
@@ -95,6 +97,26 @@ public class PrettyPrintDictionary(IDictionary<string, string> Pairs)
         }
         builder.Append(']');
         return builder.ToString();
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (obj is not PrettyPrintDictionary other) return false;
+        if (Pairs.Count != other.Pairs.Count) return false;
+        foreach (var pair in Pairs)
+        {
+            var key = pair.Key;
+            var thisValue = pair.Value;
+            var otherHasValue = other.Pairs.TryGetValue(key, out var otherValue);
+            if (!otherHasValue) return false;
+            if (thisValue != otherValue) return false;
+        }
+        return true;
+    }
+
+    override public int GetHashCode()
+    {
+        return HashCode.Combine(Pairs.Count);
     }
 }
 
@@ -163,6 +185,22 @@ public static class ForwardingRuleExtensions
 
     public static string PrintMinimal(this IEnumerable<ForwardingRule> rules)
     {
-        return "[" + string.Join(", ", rules.Select(r => "{ " + r.ToMinimal().ToString() + " }")) + "]";
+        return "[" + string.Join(", ", rules.Select(r => "{" + r.ToMinimal().ToString() + "}")) + "]";
+    }
+
+    public static ImmutableDictionary<string, string> MergeHeaders(this ForwardingRule forwardingRule, IDictionary<string, string> requestHeaders)
+    {
+        if (requestHeaders.Count == 0) return forwardingRule.Headers;
+        if (forwardingRule.Headers.Count == 0) return requestHeaders.ToImmutableDictionary();
+        var mergedHeaders = forwardingRule.Headers.ToDictionary();
+        foreach (var requestHeader in requestHeaders)
+        {
+            if (requestHeader.Key == "Content-Type" && !forwardingRule.HasContent)
+            {
+                continue;
+            }
+            mergedHeaders[requestHeader.Key] = requestHeader.Value;
+        }
+        return mergedHeaders.ToImmutableDictionary();
     }
 }

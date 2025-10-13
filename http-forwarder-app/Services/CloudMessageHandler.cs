@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Cloud.PubSub.V1;
@@ -20,7 +19,12 @@ public class CloudMessageHandler
 
     public bool CanForwardToTopic { get; init; }
 
-    public CloudMessageHandler(ILogger<CloudMessageHandler> logger, IForwardingService forwardingService, RemoteRulePublishingService remoteRulePublishingService, bool canForwardToTopic, CancellationToken cancellationToken)
+    public CloudMessageHandler(
+        ILogger<CloudMessageHandler> logger,
+        IForwardingService forwardingService,
+        RemoteRulePublishingService remoteRulePublishingService,
+        bool canForwardToTopic,
+        CancellationToken cancellationToken)
     {
         _logger = logger;
         _forwardingService = forwardingService;
@@ -58,8 +62,19 @@ public class CloudMessageHandler
 
         var result = requestMethod switch
         {
-            "POST" => ProcessResult(_forwardingService.ProcessPostEvent(eventName, requestHostUrl: null, forwardingRequest.Content ?? string.Empty), forwardingRequest: forwardingRequest),
-            "PUT" => ProcessResult(_forwardingService.ProcessPutEvent(eventName, requestHostUrl: null, forwardingRequest.Content ?? string.Empty), forwardingRequest: forwardingRequest),
+            "POST" => ProcessResult(
+                processTask: _forwardingService.ProcessPostEvent(
+                    eventName: eventName,
+                    requestHostUrl: null,
+                    requestContent: forwardingRequest.Content ?? string.Empty,
+                    requestHeaders: forwardingRequest.RequestHeaders),
+                forwardingRequest: forwardingRequest),
+            "PUT" => ProcessResult(
+                processTask: _forwardingService.ProcessPutEvent(
+                    eventName: eventName,
+                    requestHostUrl: null, forwardingRequest.Content ?? string.Empty,
+                    requestHeaders: forwardingRequest.RequestHeaders),
+                forwardingRequest: forwardingRequest),
             _ => HandleUnsupportedRequestMethod(requestMethod)
         };
 
@@ -72,7 +87,9 @@ public class CloudMessageHandler
         return Task.FromResult(SubscriberClient.Reply.Nack);
     }
 
-    private async Task<SubscriberClient.Reply> ProcessResult(Task<OneOf<HttpResponseRuleResult, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>> processTask, ForwardingRequest forwardingRequest)
+    private async Task<SubscriberClient.Reply> ProcessResult(
+        Task<OneOf<HttpResponseRuleResult, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>> processTask,
+        ForwardingRequest forwardingRequest)
     {
         var result = await processTask;
 
@@ -100,7 +117,9 @@ public class CloudMessageHandler
         return await ackResult;
     }
 
-    private async Task<SubscriberClient.Reply> HandleRemoteRule(ForwardingRequest forwardingRequest, ForwardingRule remoteRule)
+    private async Task<SubscriberClient.Reply> HandleRemoteRule(
+        ForwardingRequest forwardingRequest,
+        ForwardingRule remoteRule)
     {
         if (!CanForwardToTopic)
         {

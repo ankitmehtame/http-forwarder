@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Internal;
 using Moq;
 using Shouldly;
+using System.Collections.Immutable;
 using System.Net;
 
 namespace http_forwarder_acceptance_tests;
@@ -32,7 +33,7 @@ public class ForwarderAcceptanceTests(CustomWebApplicationFactory<Program> facto
     {
         var client = _factory.CreateClient();
 
-        var response = await client.PostAsync("/forward/ping-test", new StringContent("{}"));
+        var response = await client.PostAsync("/forward/ping-test", new StringContent("{}", System.Text.Encoding.UTF8, "application/json"));
 
         response.EnsureSuccessStatusCode();
         var responseJson = await response.Content.ReadAsStringAsync();
@@ -46,7 +47,7 @@ public class ForwarderAcceptanceTests(CustomWebApplicationFactory<Program> facto
         stubPublisherClient.Reset();
         var client = _factory.CreateClient();
 
-        var response = await client.PostAsync("/forward/cloud-test", new StringContent("{}"));
+        var response = await client.PostAsync("/forward/cloud-test", new StringContent("{}", System.Text.Encoding.UTF8, "application/json"));
 
         response.EnsureSuccessStatusCode();
         var responseText = await response.Content.ReadAsStringAsync();
@@ -59,7 +60,11 @@ public class ForwarderAcceptanceTests(CustomWebApplicationFactory<Program> facto
         publishedMsg.Attributes.ShouldContainKeyAndValue(FunctionAttributes.EventAttribute, "cloud-test");
         publishedMsg.Attributes.ShouldContainKeyAndValue(FunctionAttributes.MethodAttribute, "POST");
         string messageData = System.Text.Encoding.UTF8.GetString(publishedMsg.Data.ToByteArray());
-        var expectedMessage = new ForwardingRequest(Method: "POST", Event: "cloud-test", Content: """{}""");
+        var expectedMessage = new ForwardingRequest(
+            Method: "POST",
+            Event: "cloud-test",
+            Content: """{}""",
+            RequestHeaders: ImmutableSortedDictionary<string, string>.Empty.Add("Content-Type", "application/json; charset=utf-8"));
         var expectedMessageJson = JsonUtils.Serialize(expectedMessage, false);
         messageData.ShouldBe(expectedMessageJson);
     }
@@ -112,7 +117,7 @@ public class ForwarderAcceptanceTests(CustomWebApplicationFactory<Program> facto
 
         var client = _factory.CreateClient();
 
-        var response = await client.PostAsync("/forward/ping-retry", new StringContent("""{"message": "FAIL"}"""));
+        var response = await client.PostAsync("/forward/ping-retry", new StringContent("""{"message": "FAIL"}""", System.Text.Encoding.UTF8, "application/json"));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Accepted);
         var responseText = await response.Content.ReadAsStringAsync();

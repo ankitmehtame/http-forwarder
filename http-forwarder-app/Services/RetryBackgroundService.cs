@@ -9,7 +9,6 @@ using http_forwarder_app.Models;
 using http_forwarder_app.Extensions;
 using http_forwarder_app.Core;
 using Microsoft.Extensions.Configuration;
-using System.Reflection.Metadata;
 
 namespace http_forwarder_app.Services;
 
@@ -51,7 +50,8 @@ public class RetryBackgroundService : BackgroundService
             var result = await _forwardingService.ProcessPostEvent(
                 eventName: request.Rule.Event,
                 requestHostUrl: request.RequestHostUrl,
-                requestContent: request.RequestBody);
+                requestContent: request.RequestBody,
+                requestHeaders: request.RequestHeaders);
 
             await result.Match(
                 ruleResult =>

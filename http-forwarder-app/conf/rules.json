@@ -96,9 +96,6 @@
         "method": "POST",
         "event": "ping-retry",
         "targetUrl": "/api/ping",
-        "headers": {
-            "Content-Type": "application/json"
-        },
         "hasContent": true,
         "retry": {
             "allow": true,
