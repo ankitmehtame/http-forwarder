@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using System.Net;
 using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
