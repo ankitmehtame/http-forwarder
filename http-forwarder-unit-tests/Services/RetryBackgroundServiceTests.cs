@@ -6,6 +6,7 @@ using http_forwarder_app.Models;
 using http_forwarder_app.Services;
 using Shouldly;
 using http_forwarder_app;
+using System.Collections.Immutable;
 
 namespace http_forwarder_unit_tests;
 
@@ -34,10 +35,14 @@ public class RetryBackgroundServiceTests
         _startTime = DateTimeOffset.UtcNow;
 
         _clockMock.Setup(x => x.UtcNow).Returns(_startTime);
-        var configSectionMock = new Mock<IConfigurationSection>(MockBehavior.Loose);
-        configSectionMock.Setup(x => x.Value).Returns("1");
+        var configRetryPolicyMaxConcurrencyMock = new Mock<IConfigurationSection>(MockBehavior.Loose);
+        configRetryPolicyMaxConcurrencyMock.Setup(x => x.Value).Returns("1");
+        var configRetryBackgroundMonitoringEnabledMock = new Mock<IConfigurationSection>(MockBehavior.Loose);
+        configRetryBackgroundMonitoringEnabledMock.Setup(x => x.Value).Returns("true");
         _configMock.Setup(x => x.GetSection(Constants.RETRY_POLICY_MAX_CONCURRENCY))
-            .Returns(configSectionMock.Object);
+            .Returns(configRetryPolicyMaxConcurrencyMock.Object);
+        _configMock.Setup(x => x.GetSection(Constants.RETRY_BACKGROUND_MONITORING_ENABLED))
+            .Returns(configRetryBackgroundMonitoringEnabledMock.Object);
 
         _service = new TestableRetryBackgroundService(
             _storageMock.Object,
@@ -64,7 +69,8 @@ public class RetryBackgroundServiceTests
         _forwardingServiceMock.Setup(x => x.ProcessPostEvent(
             request.Rule.Event,
             It.IsAny<string>(),
-            request.RequestBody))
+            request.RequestBody,
+            request.RequestHeaders))
             .ReturnsAsync(successResult);
 
         // Act
@@ -92,7 +98,8 @@ public class RetryBackgroundServiceTests
         _forwardingServiceMock.Setup(x => x.ProcessPostEvent(
             request.Rule.Event,
             It.IsAny<string>(),
-            request.RequestBody))
+            request.RequestBody,
+            request.RequestHeaders))
             .ReturnsAsync(failureResult);
 
         // Act
@@ -124,7 +131,8 @@ public class RetryBackgroundServiceTests
         _forwardingServiceMock.Setup(x => x.ProcessPostEvent(
             request.Rule.Event,
             It.IsAny<string>(),
-            request.RequestBody))
+            request.RequestBody,
+            request.RequestHeaders))
             .ReturnsAsync(failureResult);
 
         // Act
@@ -157,7 +165,7 @@ public class RetryBackgroundServiceTests
         _storageMock.Verify(x => x.Remove(It.IsAny<Guid>()), Times.Never);
         _storageMock.Verify(x => x.Store(It.IsAny<FailedRequest>()), Times.Never);
         _delayServiceMock.Verify(d => d.DelayAsync(TimeSpan.FromHours(1), It.IsAny<CancellationToken>()), Times.Once);
-        _forwardingServiceMock.Verify(f => f.ProcessPostEvent(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _forwardingServiceMock.Verify(f => f.ProcessPostEvent(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<ImmutableDictionary<string, string>>()), Times.Never);
     }
 
     [Fact]
@@ -171,7 +179,7 @@ public class RetryBackgroundServiceTests
         _storageMock.Setup(s => s.StorageHash).Returns(1);
 
         var successResult = new HttpResponseRuleResult(new(System.Net.HttpStatusCode.OK), rule);
-        _forwardingServiceMock.Setup(f => f.ProcessPostEvent(request.Rule.Event, request.RequestHostUrl, request.RequestBody))
+        _forwardingServiceMock.Setup(f => f.ProcessPostEvent(request.Rule.Event, request.RequestHostUrl, request.RequestBody, request.RequestHeaders))
             .ReturnsAsync(successResult);
 
         _delayServiceMock.Setup(d => d.DelayAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
@@ -183,7 +191,7 @@ public class RetryBackgroundServiceTests
 
         // Assert
         _storageMock.Verify(s => s.GetRequestsDue(It.IsAny<DateTimeOffset>()), Times.Once);
-        _forwardingServiceMock.Verify(f => f.ProcessPostEvent(request.Rule.Event, request.RequestHostUrl, request.RequestBody), Times.Once);
+        _forwardingServiceMock.Verify(f => f.ProcessPostEvent(request.Rule.Event, request.RequestHostUrl, request.RequestBody, request.RequestHeaders), Times.Once);
         _storageMock.Verify(s => s.Remove(request.Id), Times.Once);
         _delayServiceMock.Verify(d => d.DelayAsync(TimeSpan.FromHours(1), It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -239,6 +247,7 @@ public class RetryBackgroundServiceTests
             Rule: rule.ToMinimal(),
             RequestBody: "test-body",
             RequestHostUrl: "http://localhost:5000",
+            RequestHeaders: new Dictionary<string, string> { { "Content-Type", "application/json" }, { "X-Test", "true" } }.ToImmutableSortedDictionary(),
             FirstAttempt: _startTime.AddMinutes(-5),
             LastAttempt: _startTime.AddMinutes(-5),
             AttemptCount: 1,
@@ -291,7 +300,8 @@ public class RetryBackgroundServiceTests
         _forwardingServiceMock.Setup(x => x.ProcessPostEvent(
             request.Rule.Event,
             It.IsAny<string>(),
-            request.RequestBody))
+            request.RequestBody,
+            request.RequestHeaders))
             .ReturnsAsync(noRuleResult);
 
         // Act
@@ -317,7 +327,8 @@ public class RetryBackgroundServiceTests
         _forwardingServiceMock.Setup(x => x.ProcessPostEvent(
             request.Rule.Event,
             It.IsAny<string>(),
-            request.RequestBody))
+            request.RequestBody,
+            request.RequestHeaders))
             .ReturnsAsync(noBodyResult);
 
         // Act
@@ -343,7 +354,8 @@ public class RetryBackgroundServiceTests
         _forwardingServiceMock.Setup(x => x.ProcessPostEvent(
             request.Rule.Event,
             It.IsAny<string>(),
-            request.RequestBody))
+            request.RequestBody,
+            request.RequestHeaders))
             .ReturnsAsync(remoteRuleResult);
 
         // Act

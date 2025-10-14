@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Google.Apis.Util;
 using Google.Cloud.Functions.Framework;
 using Google.Cloud.Functions.Hosting;
 using http_forwarder_app.Core;
@@ -92,13 +93,23 @@ public class Function : IHttpFunction
             requestBody = ((await reader.ReadToEndAsync()) ?? string.Empty).Trim();
         }
 
-        ForwardingRequest fwdRequest = new(Method: requestMethod, Event: eventName, Content: requestBody);
+        var requestHeaders = context.Request.Headers.GetHeaders();
 
-        var publishingResult = await _publishingService.Publish(projectId: _projectId, topicId: _topicId, fwdRequest: fwdRequest);
+        ForwardingRequest fwdRequest = new(
+            Method: requestMethod,
+            Event: eventName,
+            Content: requestBody,
+            RequestHeaders: requestHeaders);
+
+        var publishingResult = await _publishingService.Publish(
+            projectId: _projectId,
+            topicId: _topicId,
+            fwdRequest: fwdRequest);
 
         await publishingResult.Match(
             async success =>
             {
+                success.ThrowIfNull("Success result can not be null");
                 var messageId = success.MessageId;
                 context.Response.StatusCode = StatusCodes.Status200OK;
                 await context.Response.WriteAsync($"Message published successfully. Message ID: {messageId} for event {eventName} & method {requestMethod}");

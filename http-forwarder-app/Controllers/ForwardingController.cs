@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
@@ -46,7 +47,10 @@ namespace http_forwarder_app.Controllers
         public async Task Get(string eventName)
         {
             string method = Request.Method;
-            var result = await _forwardingService.ProcessGetEvent(eventName, GetHostUrl(Request));
+            var result = await _forwardingService.ProcessGetEvent(
+                eventName: eventName,
+                requestHostUrl: GetHostUrl(Request),
+                requestHeaders: Request.Headers.GetHeaders());
             await result.Match(
                 async ruleResult => await HttpContext.CopyHttpResponse(ruleResult.Response),
                 async noRuleFound =>
@@ -73,14 +77,19 @@ namespace http_forwarder_app.Controllers
             string method = Request.Method;
             Request.EnableBuffering();
             var requestContent = await ReadRequestBody(Request);
-            var result = await _forwardingService.ProcessPostEvent(eventName, GetHostUrl(Request), requestContent);
+            var requestHeaders = Request.Headers.GetHeaders();
+            var result = await _forwardingService.ProcessPostEvent(
+                eventName: eventName,
+                requestHostUrl: GetHostUrl(Request),
+                requestContent: requestContent,
+                requestHeaders: requestHeaders);
 
             await result.Match(
                 async ruleResult =>
                 {
                     if (ruleResult.Response.IsServerError() && ruleResult.Rule.Retry.Allow)
                     {
-                        await HandleFailedRequest(ruleResult.Rule, requestContent, await ruleResult.Response.Content.ReadAsStringAsync());
+                        await HandleFailedRequest(ruleResult.Rule, requestContent, requestHeaders, await ruleResult.Response.Content.ReadAsStringAsync());
                         return;
                     }
                     await HttpContext.CopyHttpResponse(ruleResult.Response);
@@ -97,7 +106,7 @@ namespace http_forwarder_app.Controllers
                 },
                 async remoteRuleFound =>
                 {
-                    await HandleRemoteRule(remoteRuleFound.RemoteRule, requestContent);
+                    await HandleRemoteRule(remoteRuleFound.RemoteRule, requestContent, requestHeaders);
                 }
             );
         }
@@ -111,14 +120,19 @@ namespace http_forwarder_app.Controllers
             string method = Request.Method;
             Request.EnableBuffering();
             var requestContent = await ReadRequestBody(Request);
-            var result = await _forwardingService.ProcessPutEvent(eventName, GetHostUrl(Request), requestContent);
+            var requestHeaders = Request.Headers.GetHeaders();
+            var result = await _forwardingService.ProcessPutEvent(
+                eventName: eventName,
+                requestHostUrl: GetHostUrl(Request),
+                requestContent: requestContent,
+                requestHeaders: requestHeaders);
 
             await result.Match(
                 async ruleResult =>
                 {
                     if (ruleResult.Response.IsServerError() && ruleResult.Rule.Retry.Allow)
                     {
-                        await HandleFailedRequest(ruleResult.Rule, requestContent, await ruleResult.Response.Content.ReadAsStringAsync());
+                        await HandleFailedRequest(ruleResult.Rule, requestContent, requestHeaders, await ruleResult.Response.Content.ReadAsStringAsync());
                         return;
                     }
                     await HttpContext.CopyHttpResponse(ruleResult.Response);
@@ -135,7 +149,7 @@ namespace http_forwarder_app.Controllers
                 },
                 async remoteRuleFound =>
                 {
-                    await HandleRemoteRule(remoteRuleFound.RemoteRule, requestContent);
+                    await HandleRemoteRule(remoteRuleFound.RemoteRule, requestContent, requestHeaders);
                 }
             );
         }
@@ -149,13 +163,17 @@ namespace http_forwarder_app.Controllers
             string method = Request.Method;
             Request.EnableBuffering();
             var requestContent = await ReadRequestBody(Request);
-            var result = await _forwardingService.ProcessDeleteEvent(eventName, GetHostUrl(Request));
+            var requestHeaders = Request.Headers.GetHeaders();
+            var result = await _forwardingService.ProcessDeleteEvent(
+                eventName: eventName,
+                requestHostUrl: GetHostUrl(Request),
+                requestHeaders: requestHeaders);
             await result.Match(
                 async ruleResult =>
                 {
                     if (ruleResult.Response.IsServerError() && ruleResult.Rule.Retry.Allow)
                     {
-                        await HandleFailedRequest(ruleResult.Rule, requestContent, await ruleResult.Response.Content.ReadAsStringAsync());
+                        await HandleFailedRequest(ruleResult.Rule, requestContent, requestHeaders, await ruleResult.Response.Content.ReadAsStringAsync());
                         return;
                     }
                     await HttpContext.CopyHttpResponse(ruleResult.Response);
@@ -173,7 +191,7 @@ namespace http_forwarder_app.Controllers
             );
         }
 
-        private async Task HandleRemoteRule(ForwardingRule remoteRule, string requestContent)
+        private async Task HandleRemoteRule(ForwardingRule remoteRule, string requestContent, ImmutableSortedDictionary<string, string> requestHeaders)
         {
             if (!_configuration.IsPublisherEnabled())
             {
@@ -182,7 +200,7 @@ namespace http_forwarder_app.Controllers
                 await Response.WriteAsync("Request can not be processed by this system");
                 return;
             }
-            ForwardingRequest forwardingRequest = new(Method: remoteRule.Method, Event: remoteRule.Event, Content: requestContent);
+            ForwardingRequest forwardingRequest = new(Method: remoteRule.Method, Event: remoteRule.Event, Content: requestContent, RequestHeaders: requestHeaders);
             var publishResult = await _remoteRulePublishingService.Publish(forwardingRequest, remoteRule);
             publishResult.Switch(
                 success =>
@@ -198,7 +216,7 @@ namespace http_forwarder_app.Controllers
             );
         }
 
-        private async Task HandleFailedRequest(ForwardingRule rule, string? content, string error)
+        private async Task HandleFailedRequest(ForwardingRule rule, string? content, ImmutableSortedDictionary<string, string> requestHeaders, string error)
         {
             var creationTime = _clock.UtcNow;
             var failedRequest = new FailedRequest(
@@ -206,10 +224,11 @@ namespace http_forwarder_app.Controllers
                 Rule: rule.ToMinimal(),
                 RequestBody: content ?? string.Empty,
                 RequestHostUrl: GetHostUrl(Request),
+                RequestHeaders: requestHeaders,
                 FirstAttempt: creationTime,
                 LastAttempt: creationTime,
                 AttemptCount: 1,
-                NextAttempt: creationTime.Add(RetryBackgroundService.RetryIntervalMin),
+                NextAttempt: creationTime.Add(Constants.RetryIntervalMin),
                 LastError: error
             );
 
@@ -219,7 +238,7 @@ namespace http_forwarder_app.Controllers
                 failedRequest.NextAttempt);
             _failedRequestStorage.Store(failedRequest);
             Response.StatusCode = StatusCodes.Status202Accepted;
-            await Response.WriteAsync(string.Format(CultureInfo.InvariantCulture, "Request accepted for retry - {0}", failedRequest.Id));
+            await Response.WriteAsync(string.Format(CultureInfo.InvariantCulture, "Request {0} accepted for retry - {1} at {2}", failedRequest.Rule.Event, failedRequest.Id, failedRequest.FirstAttempt.ToLocalTime()));
         }
 
         private static string GetHostUrl(HttpRequest request)

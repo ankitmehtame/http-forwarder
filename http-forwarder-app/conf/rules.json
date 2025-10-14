@@ -94,6 +94,21 @@
     },
     {
         "method": "POST",
+        "event": "ping-retry",
+        "targetUrl": "/api/ping",
+        "hasContent": true,
+        "retry": {
+            "allow": true,
+            "expiry": "23:59:59"
+        },
+        "tags": [
+            "local",
+            "home",
+            "cloud"
+        ]
+    },
+    {
+        "method": "POST",
         "event": "cloud-test",
         "targetUrl": "/api/cloud",
         "content": "{\"message\": \"cloud-message-567\"}",

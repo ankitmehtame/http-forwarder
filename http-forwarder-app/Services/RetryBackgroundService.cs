@@ -19,10 +19,8 @@ public class RetryBackgroundService : BackgroundService
     private readonly ITimeDelayService _timeDelayService;
     private readonly ISystemClock _clock;
     private readonly ILogger<RetryBackgroundService> _logger;
-    internal static readonly TimeSpan RetryIntervalMin = TimeSpan.FromSeconds(30);
-    internal static readonly TimeSpan RetryIntervalMax = TimeSpan.FromHours(1);
     private readonly int _maxConcurrency;
-    internal static readonly TimeSpan RetryExpiry = TimeSpan.FromHours(24);
+    private readonly bool _backgroundMonitoringEnabled;
 
     private CancellationTokenSource _waitTokenSource;
 
@@ -41,6 +39,7 @@ public class RetryBackgroundService : BackgroundService
         _clock = clock;
         _logger = logger;
         _maxConcurrency = configuration.GetRetryMaxConcurrency();
+        _backgroundMonitoringEnabled = configuration.IsRetryBackgroundMonitoringEnabled();
         _waitTokenSource = new CancellationTokenSource();
     }
 
@@ -51,7 +50,8 @@ public class RetryBackgroundService : BackgroundService
             var result = await _forwardingService.ProcessPostEvent(
                 eventName: request.Rule.Event,
                 requestHostUrl: request.RequestHostUrl,
-                requestContent: request.RequestBody);
+                requestContent: request.RequestBody,
+                requestHeaders: request.RequestHeaders);
 
             await result.Match(
                 ruleResult =>
@@ -117,7 +117,7 @@ public class RetryBackgroundService : BackgroundService
         {
             AttemptCount = request.AttemptCount + 1,
             LastAttempt = now,
-            NextAttempt = now.Add(request.AttemptCount.CalculateExponentialDelay(RetryIntervalMin, RetryIntervalMax))
+            NextAttempt = now.Add(request.AttemptCount.CalculateExponentialDelay(Constants.RetryIntervalMin, Constants.RetryIntervalMax))
         };
 
         if (nextAttempt.NextAttempt > request.FirstAttempt.Add(GetValidExpiry(retry)))
@@ -157,7 +157,12 @@ public class RetryBackgroundService : BackgroundService
 
     private async Task RunAsync(CancellationToken stoppingToken)
     {
-        var maxWait = RetryIntervalMax;
+        if (!_backgroundMonitoringEnabled)
+        {
+            _logger.LogInformation("Retry background monitoring is not enabled");
+            return;
+        }
+        var maxWait = Constants.RetryIntervalMax;
         var nextAttempt = DateTimeOffset.MaxValue;
         int currentHash = 0;
         _storage.StorageUpdated -= OnStorageUpdated;
@@ -223,6 +228,6 @@ public class RetryBackgroundService : BackgroundService
 
     private static TimeSpan GetValidExpiry(RuleRetry retry)
     {
-        return retry.Expiry > RetryExpiry ? RetryExpiry : retry.Expiry;
+        return retry.Expiry > Constants.RetryExpiry ? Constants.RetryExpiry : retry.Expiry;
     }
 }

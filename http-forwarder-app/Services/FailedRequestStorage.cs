@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Internal;
 using http_forwarder_app.Models;
 using http_forwarder_app.Core;
+using Microsoft.Extensions.Logging;
 
 namespace http_forwarder_app.Services;
 
@@ -14,12 +16,19 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
 {
     private readonly string _storageFile;
     private readonly ReaderWriterLockSlim _lock = new();
+    private readonly IConfiguration _configuration;
     private readonly ISystemClock _clock;
 
     private int _storageHash = 0;
+    private DateTimeOffset _lastCleanup = DateTimeOffset.MinValue;
+    private readonly ILogger<FailedRequestStorage> _logger;
+    private readonly object _archiveLock = new();
 
-    public FailedRequestStorage(IConfiguration configuration, ISystemClock clock)
+
+
+    public FailedRequestStorage(IConfiguration configuration, ISystemClock clock, ILogger<FailedRequestStorage> logger)
     {
+        _configuration = configuration;
         _clock = clock;
         var storageDir = configuration.GetValidStorageDirPath() ?? throw new ArgumentNullException("Storage dir path cannot be null. Please set env variable " + Constants.STORAGE_DIR_PATH);
         if (!Directory.Exists(storageDir))
@@ -27,6 +36,7 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
             Directory.CreateDirectory(storageDir);
         }
         _storageFile = configuration.GetStorageFilePath();
+        _logger = logger;
     }
 
     public int StorageHash => _storageHash;
@@ -100,16 +110,69 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
         try
         {
             var requests = Load();
+            var request = requests.FirstOrDefault(r => r.Id == requestId);
             requests.RemoveAll(r => r.Id == requestId);
             var newContent = JsonUtils.Serialize(requests, true);
             File.WriteAllText(_storageFile, newContent);
             var newHash = newContent.GetHashCode();
             _storageHash = newHash;
             StorageUpdated(this, EventArgs.Empty);
+            if (request != null)
+            {
+                var archiveFile = _configuration.GetArchiveFilePath(request.Id);
+                var requestContent = JsonUtils.Serialize(request, true);
+                _logger.LogInformation("Archiving request {requestId} with event {eventName} to {archiveFile}", requestId, request.Rule.Event, Path.GetFileName(archiveFile));
+                File.WriteAllText(archiveFile, requestContent);
+            }
         }
         finally
         {
             _lock.ExitWriteLock();
+        }
+    }
+
+    public void ScheduleCleanup(bool force)
+    {
+        var acquiredLock = Monitor.TryEnter(_archiveLock);
+        if (!acquiredLock) return;
+        try
+        {
+            var now = _clock.UtcNow;
+            if (!force && now < (_lastCleanup + TimeSpan.FromHours(1))) return;
+            RemoveOldArchives();
+            _lastCleanup = now;
+        }
+        finally
+        {
+            if (acquiredLock) Monitor.Exit(_archiveLock);
+        }
+    }
+
+    private void RemoveOldArchives()
+    {
+        lock (_archiveLock)
+        {
+            var archives = _configuration.GetArchiveFilePaths();
+            foreach (var archivePath in archives)
+            {
+                var archiveContent = File.ReadAllText(archivePath);
+                try
+                {
+                    var now = _clock.UtcNow;
+                    var archive = JsonUtils.Deserialize<FailedRequest>(archiveContent)!;
+                    var expiry = archive.FirstAttempt.Add(Constants.RetryExpiry);
+                    if (now >= expiry)
+                    {
+                        _logger.LogInformation("Removing archive {archiveFile} as it has expired", Path.GetFileName(archivePath));
+                        File.Delete(archivePath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogInformation("Removing archive {archiveFile} as it can't be loaded - {ex}", Path.GetFileName(archivePath), ex);
+                    File.Delete(archivePath);
+                }
+            }
         }
     }
 
@@ -121,6 +184,7 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
             File.WriteAllText(_storageFile, JsonUtils.Serialize(newContent, true));
             return newContent;
         }
+        Task.Run(() => ScheduleCleanup(false));
         var content = File.ReadAllText(_storageFile);
         _storageHash = content.GetHashCode();
         return JsonUtils.Deserialize<List<FailedRequest>>(content) ?? [];

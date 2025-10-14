@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using http_forwarder_app.Core;
 using http_forwarder_app.Models;
 using Shouldly;
@@ -126,5 +127,63 @@ public class SerializerTests
         contentPostCloned.ShouldBeEquivalentTo(contentPost);
         // Not same instance
         contentPostCloned.ShouldNotBeSameAs(contentPost);
+    }
+
+    [Fact]
+    public void SerializesForwardingRequestWithHeadersCorrectly()
+    {
+        var reqJson = """
+        {"method":"POST","event":"dummy-event","content":"hello-world","requestHeaders":{"Accept":"*/*","Accept-Encoding":"gzip, deflate, br","Content-Type":"application/json"}}
+        """.Trim();
+        ForwardingRequest forwardingRequest = new(
+            Method: "POST",
+            Event: "dummy-event",
+            Content: "hello-world",
+            RequestHeaders: ImmutableSortedDictionary<string, string>.Empty
+                .Add("Content-Type", "application/json")
+                .Add("Accept", "*/*")
+                .Add("Accept-Encoding", "gzip, deflate, br")
+        );
+        var fwdRequest = JsonUtils.Serialize(forwardingRequest, false);
+        fwdRequest.ShouldNotBeNull();
+        fwdRequest.ShouldBeEquivalentTo(reqJson);
+    }
+
+
+    [Fact]
+    public void DeserializesForwardingRequestWithHeadersCorrectly()
+    {
+        var reqJson = """
+        {"method":"POST","event":"dummy-event","content":"hello-world","requestHeaders":{"Accept":"*/*","Accept-Encoding":"gzip, deflate, br","Content-Type":"application/json"}}
+        """;
+        var fwdRequest = JsonUtils.Deserialize<ForwardingRequest>(reqJson);
+        fwdRequest.ShouldNotBeNull();
+
+        fwdRequest.ShouldBeEquivalentTo(new ForwardingRequest(
+            Method: "POST",
+            Event: "dummy-event",
+            Content: "hello-world",
+            RequestHeaders: ImmutableSortedDictionary<string, string>.Empty
+                .Add("Content-Type", "application/json")
+                .Add("Accept", "*/*")
+                .Add("Accept-Encoding", "gzip, deflate, br")
+        ));
+    }
+
+    [Fact]
+    public void DeserializesForwardingRequestWithNoHeadersCorrectly()
+    {
+        var reqJson = """
+        {"method": "POST", "event": "dummy-event", "content": "hello-world"}
+        """;
+        var fwdRequest = JsonUtils.Deserialize<ForwardingRequest>(reqJson);
+        fwdRequest.ShouldNotBeNull();
+
+        fwdRequest.ShouldBeEquivalentTo(new ForwardingRequest(
+            Method: "POST",
+            Event: "dummy-event",
+            Content: "hello-world",
+            RequestHeaders: ImmutableSortedDictionary<string, string>.Empty
+        ));
     }
 }

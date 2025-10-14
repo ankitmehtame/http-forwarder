@@ -7,7 +7,8 @@ using Shouldly;
 using Microsoft.AspNetCore.Http.Features;
 using http_forwarder_app.Core;
 using http_forwarder_app.Models.Services;
-using http_forwarder_app.Models; // For ByteString
+using http_forwarder_app.Models;
+using System.Collections.Immutable;
 
 namespace http_forwarder_unit_tests;
 
@@ -42,7 +43,7 @@ public class FunctionUnitTests
         // Assert
         setupData.RespFeature.StatusCode.ShouldBe((int)HttpStatusCode.OK);
 
-        setupData.MockPublishingService.Verify(x => x.Publish(projectId, topicId, It.IsAny<ForwardingRequest>()), Times.Once);
+        setupData.MockPublishingService.Verify(x => x.Publish(projectId, topicId, It.Is<ForwardingRequest>(r => r.Method == requestMethod && r.Event == eventName)), Times.Once);
 
         var responseBody = await GetResponseContent(setupData);
         responseBody.ShouldContain("Message published successfully");
@@ -103,6 +104,32 @@ public class FunctionUnitTests
         responseBody.ShouldContain("Not allowed");
     }
 
+    [Fact]
+    public void Equate_ForwardingRequests()
+    {
+        var headers = new Dictionary<string, string> { { "Content-Type", "application/json" }, { "X-Test", "true" } };
+
+        static ForwardingRequest CreateReq(ImmutableSortedDictionary<string, string> reqHeaders)
+        {
+            return new(
+            Method: "POST",
+            Event: "ev1",
+            Content: "content1",
+            RequestHeaders: reqHeaders);
+        }
+
+        var req1 = CreateReq(headers.ToImmutableSortedDictionary());
+        var req2 = CreateReq(headers.Reverse().ToImmutableSortedDictionary());
+        var req3 = CreateReq(headers.ToImmutableSortedDictionary());
+
+        req3.ShouldBeEquivalentTo(req1);
+        req2.ShouldBeEquivalentTo(req1);
+        req3.ShouldNotBeSameAs(req1);
+        req2.ShouldNotBeSameAs(req1);
+        (req3 == req1).ShouldBeTrue();
+        (req2 == req1).ShouldBeTrue();
+    }
+
     private static SetupData Setup(string requestMethod, IDictionary<string, string?> inMemorySettings)
     {
         var mockLogger = new Mock<ILogger<http_forwarder_app.Functions.Function>>();
@@ -111,6 +138,7 @@ public class FunctionUnitTests
 
         var content = new { Name = "Jane Doe", Age = 40, City = "London" };
         var jsonContent = JsonUtils.Serialize(content, false);
+        var headers = new Dictionary<string, string> { { "Content-Type", "application/json" }, { "X-Test", "true" } };
         var requestBodyStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(jsonContent));
 
         IConfiguration configuration = new ConfigurationBuilder()
@@ -125,6 +153,8 @@ public class FunctionUnitTests
         reqFeature.Path = requestPath;
         reqFeature.Method = requestMethod;
         reqFeature.Body = requestBodyStream;
+        reqFeature.Headers = new HeaderDictionary();
+        headers.ToList().ForEach(x => reqFeature.Headers.Append(x.Key, x.Value));
         httpContext.Features.Set(reqFeature);
 
         httpContext.Features.Set(respFeature);
@@ -132,10 +162,14 @@ public class FunctionUnitTests
         var responseBodyFeature = new StreamResponseBodyFeature(responseBodyStream);
         httpContext.Features.Set<IHttpResponseBodyFeature>(responseBodyFeature);
 
-        ForwardingRequest fwdRequest = new(Event: eventName, Method: requestMethod, Content: jsonContent);
+        ForwardingRequest fwdRequest = new(
+            Event: eventName,
+            Method: requestMethod,
+            Content: jsonContent,
+            RequestHeaders: headers.ToImmutableSortedDictionary());
 
         mockPublishingService
-            .Setup(ps => ps.Publish(projectId, topicId, fwdRequest))
+            .Setup(ps => ps.Publish(projectId, topicId, It.Is<ForwardingRequest>(r => r == fwdRequest)))
             .ReturnsAsync(new RemoteRulePublishSuccessResult("test-message-id-123"))
             .Verifiable();
 

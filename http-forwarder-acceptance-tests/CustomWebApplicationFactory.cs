@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
+using Microsoft.Extensions.Internal;
 
 namespace http_forwarder_acceptance_tests;
 
@@ -23,10 +24,20 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
 
         builder.ConfigureTestServices(s =>
         {
-            s.AddTransient<HttpMessageHandlerBuilder>(sp => new TestServerHttpMessageHandlerBuilder(Server));
+            s.Remove(s.Single(x => x.ServiceType == typeof(ISystemClock)));
+            s.AddSingleton<ISystemClock, FakeClock>();
+            s.AddSingleton<RequestCapturingContext>();
+            s.AddTransient<RequestCapturingHandler>();
+            s.ConfigureHttpClientDefaults(b =>
+            {
+                b.ConfigurePrimaryHttpMessageHandler(() => Server.CreateHandler());
+                b.AddHttpMessageHandler<RequestCapturingHandler>();
+            });
             s.Remove(s.Single(x => x.ImplementationType == typeof(PublisherClientFactory)));
             s.AddSingleton<IPublisherClientFactory, StubPublisherClientFactory>();
             s.Remove(s.Single(x => x.ImplementationType == typeof(RetryBackgroundService)));
+            s.AddSingleton<ManualRetryBackgroundService>();
+            s.AddHostedService<ManualRetryBackgroundService>();
         });
     }
 }
