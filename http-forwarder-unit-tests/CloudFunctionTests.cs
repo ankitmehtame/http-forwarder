@@ -154,7 +154,7 @@ public class FunctionUnitTests
         reqFeature.Method = requestMethod;
         reqFeature.Body = requestBodyStream;
         reqFeature.Headers = new HeaderDictionary();
-        headers.ToList().ForEach(x => reqFeature.Headers.Add(x.Key, x.Value));
+        headers.ToList().ForEach(x => reqFeature.Headers.Append(x.Key, x.Value));
         httpContext.Features.Set(reqFeature);
 
         httpContext.Features.Set(respFeature);

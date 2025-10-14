@@ -43,7 +43,7 @@ public record class ForwardingRequest(
             RequestHeaders.SequenceEqual(other.RequestHeaders);
     }
 
-    override public string ToString()
+    public override string ToString()
     {
         __PrettyHeaders ??= new(RequestHeaders);
         var builder = new StringBuilder();
