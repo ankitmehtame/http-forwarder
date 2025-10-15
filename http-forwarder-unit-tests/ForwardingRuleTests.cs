@@ -46,7 +46,7 @@ public class ForwardingRuleTests
         rule.Headers.ShouldNotBeEmpty();
         rule.Headers.Count.ShouldBe(2);
         result.ShouldStartWith("Method = POST, Event = complex-event, TargetUrl = http://api.example.com, HasContent = True, Content = , IgnoreSslError = False, ");
-        result.ShouldContain("Headers = [Content-Type=application/json, X-Test=true]", customMessage: result);
+        result.ShouldContain("Headers = [{Content-Type=application/json}, {X-Test=true}]", customMessage: result);
         result.ShouldContain("IgnoredRequestHeaders = []");
         result.ShouldContain("Tags = [local, test]", customMessage: result);
         result.ShouldEndWith(", Retry = { Allow = False, Expiry = 23:59:59 }");

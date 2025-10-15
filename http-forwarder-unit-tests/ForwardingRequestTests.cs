@@ -90,6 +90,6 @@ public class ForwardingRequestTests
         var result = request.ToString();
 
         // Assert
-        result.ShouldBe("Method = GET, Event = test-event, Content = content, RequestHeaders = [Content-Type=application/json, X-Test=true]");
+        result.ShouldBe("Method = GET, Event = test-event, Content = content, RequestHeaders = [{Content-Type=application/json}, {X-Test=true}]");
     }
 }

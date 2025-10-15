@@ -109,9 +109,11 @@ public class PrettyPrintDictionary(IDictionary<string, string> pairs)
         foreach (var pair in Pairs.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase))
         {
             if (curIndex > 0) builder.Append(", ");
+            builder.Append('{');
             builder.Append(pair.Key);
             builder.Append('=');
             builder.Append(pair.Value);
+            builder.Append('}');
             curIndex++;
         }
         builder.Append(']');
