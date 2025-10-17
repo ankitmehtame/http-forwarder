@@ -2,11 +2,10 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Google.Cloud.PubSub.V1;
 using Shouldly;
-using http_forwarder_app.Core;
 using http_forwarder_app.Models;
+using http_forwarder_app.Utils;
 using http_forwarder_app.Cloud;
 using System.Collections.Immutable;
-using System.Data.Common;
 
 namespace http_forwarder_unit_tests;
 

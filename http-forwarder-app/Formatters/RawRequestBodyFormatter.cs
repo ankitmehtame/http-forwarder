@@ -4,8 +4,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.Net.Http.Headers;
-using http_forwarder_app.Core;
 using Microsoft.AspNetCore.Http;
+using http_forwarder_app.Utils;
 
 namespace http_forwarder_app.Formatters;
 

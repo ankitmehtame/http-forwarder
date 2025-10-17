@@ -5,7 +5,7 @@ using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 
-namespace http_forwarder_app.Core;
+namespace http_forwarder_app.Utils;
 
 public static class RestUtils
 {

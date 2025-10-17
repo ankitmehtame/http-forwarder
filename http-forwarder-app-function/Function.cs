@@ -5,6 +5,7 @@ using Google.Cloud.Functions.Hosting;
 using http_forwarder_app.Core;
 using http_forwarder_app.Models;
 using http_forwarder_app.Models.Services;
+using http_forwarder_app.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;

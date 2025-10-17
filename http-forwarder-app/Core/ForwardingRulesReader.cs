@@ -1,9 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using http_forwarder_app.Models;
+using http_forwarder_app.Utils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -24,7 +23,7 @@ namespace http_forwarder_app.Core
             _locationTag = locationTag;
         }
 
-        private IConfiguration Configuration { get; }
+        internal IConfiguration Configuration { get; }
         private AppState AppState { get; }
 
         public void Init()
@@ -62,6 +61,9 @@ namespace http_forwarder_app.Core
 
         private void SetState()
         {
+            var maskedHeaders = Configuration.CreateMaskedHeaders();
+            _logger.LogDebug("Setting masked headers to {maskedHeaders}", maskedHeaders);
+            PrettyDictionary.SetMaskedKeys(maskedHeaders);
             var rules = Read();
             var validRules = rules.Where(rule => rule.HasTag(_locationTag)).ToArray();
             var remoteRules = rules.Where(rule => !rule.HasTag(_locationTag)).ToArray();

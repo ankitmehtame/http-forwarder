@@ -5,9 +5,9 @@ using Moq;
 using Microsoft.Extensions.Configuration;
 using Shouldly;
 using Microsoft.AspNetCore.Http.Features;
-using http_forwarder_app.Core;
 using http_forwarder_app.Models.Services;
 using http_forwarder_app.Models;
+using http_forwarder_app.Utils;
 using System.Collections.Immutable;
 
 namespace http_forwarder_unit_tests;

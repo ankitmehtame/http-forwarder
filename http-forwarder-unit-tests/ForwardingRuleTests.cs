@@ -5,8 +5,22 @@ using Xunit.Repeat;
 
 namespace http_forwarder_unit_tests;
 
-public class ForwardingRuleTests
+public class ForwardingRuleTests : IDisposable
 {
+    public ForwardingRuleTests()
+    {
+        var currentContext = GetType().Name;
+        PrettyDictionary.CurrentContext = currentContext;
+        PrettyDictionary.SetMaskedKeys([]);
+    }
+
+    public void Dispose()
+    {
+        // Cleanup static state after each test
+        PrettyDictionary.ResetMaskedKeys();
+        GC.SuppressFinalize(this);
+    }
+
     [Fact]
     [Repeat(10)]
     public void ToString_WithNoOptionalParameters_FormatsCorrectly()

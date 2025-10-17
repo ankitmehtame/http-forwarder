@@ -59,7 +59,7 @@ public record class ForwardingRule
     public ImmutableHashSet<string> Tags { get; init; }
 
     [JsonIgnore]
-    public PrettyPrintDictionary? __PrettyHeaders { get; private set; } = null;
+    public PrettyDictionary? __PrettyHeaders { get; private set; } = null;
 
     [JsonIgnore]
     public string? __PrettyIgnoredRequestHeaders { get; private set; } = null;
@@ -94,50 +94,6 @@ public record class ForwardingRule
     public ForwardingRuleMinimal ToMinimal()
     {
         return new ForwardingRuleMinimal(Method: Method, Event: Event, Tags: Tags);
-    }
-}
-
-public class PrettyPrintDictionary(IDictionary<string, string> pairs)
-{
-    public IDictionary<string, string> Pairs { get; init; } = pairs;
-
-    public override string ToString()
-    {
-        var builder = new StringBuilder();
-        builder.Append('[');
-        var curIndex = 0;
-        foreach (var pair in Pairs.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase))
-        {
-            if (curIndex > 0) builder.Append(", ");
-            builder.Append('{');
-            builder.Append(pair.Key);
-            builder.Append('=');
-            builder.Append(pair.Value);
-            builder.Append('}');
-            curIndex++;
-        }
-        builder.Append(']');
-        return builder.ToString();
-    }
-
-    public override bool Equals(object? obj)
-    {
-        if (obj is not PrettyPrintDictionary other) return false;
-        if (Pairs.Count != other.Pairs.Count) return false;
-        foreach (var pair in Pairs)
-        {
-            var key = pair.Key;
-            var thisValue = pair.Value;
-            var otherHasValue = other.Pairs.TryGetValue(key, out var otherValue);
-            if (!otherHasValue) return false;
-            if (thisValue != otherValue) return false;
-        }
-        return true;
-    }
-
-    override public int GetHashCode()
-    {
-        return HashCode.Combine(Pairs.Count);
     }
 }
 

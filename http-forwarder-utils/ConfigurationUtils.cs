@@ -69,4 +69,9 @@ public static class ConfigurationExtensions
         return configuration.GetValue<bool>(Constants.RETRY_BACKGROUND_MONITORING_ENABLED, true);
     }
 
+    public static string GetMaskedHeadersValue(this IConfiguration configuration)
+    {
+        return (configuration.GetValue<string?>(Constants.MASKED_HEADERS, string.Empty) ?? string.Empty).Trim();
+    }
+
 }
