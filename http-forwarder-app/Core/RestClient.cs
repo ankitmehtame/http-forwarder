@@ -1,18 +1,19 @@
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using http_forwarder_app.Models;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using http_forwarder_app.Utils;
 
 namespace http_forwarder_app.Core
 {
-    public class RestClient(IHttpClientFactory httpClientFactory, ILogger<RestClient> logger) : IRestClient
+    public class RestClient(IHttpClientFactory httpClientFactory, ILogger<RestClient> logger, IConfiguration configuration) : IRestClient
     {
         public async Task<HttpResponseMessage> MakeGetCall(string eventName, string targetUrl, IDictionary<string, string> headers, bool ignoreSslError)
         {
             var client = httpClientFactory.CreateClient(ignoreSslError ? Constants.HTTP_CLIENT_IGNORE_SSL_ERROR : eventName);
             AddHeaders(client, headers);
-            logger.LogDebug("Calling GET {url} with headers {headers}", targetUrl, new PrettyPrintDictionary(headers));
+            logger.LogDebug("Calling GET {url} with headers {headers}", targetUrl, configuration.CreatePrettyDictionary(headers));
             var resp = await client.GetAsync(targetUrl);
             return resp;
         }
@@ -24,7 +25,7 @@ namespace http_forwarder_app.Core
             var contentType = SafeGetContentType(headers);
             var mediaTypeHeaderValue = contentType.ToMediaTypeHeaderValue();
             var finalContent = new StringContent(content ?? string.Empty, mediaTypeHeaderValue);
-            logger.LogDebug("Calling POST {url} with body {body} and headers {headers}", targetUrl, content ?? string.Empty, new PrettyPrintDictionary(headers));
+            logger.LogDebug("Calling POST {url} with body {body} and headers {headers}", targetUrl, content ?? string.Empty, configuration.CreatePrettyDictionary(headers));
             var resp = await client.PostAsync(targetUrl, finalContent);
             return resp;
         }
@@ -33,7 +34,7 @@ namespace http_forwarder_app.Core
         {
             var client = httpClientFactory.CreateClient(ignoreSslError ? Constants.HTTP_CLIENT_IGNORE_SSL_ERROR : eventName);
             AddHeaders(client, headers);
-            logger.LogDebug("Calling DELETE {url} with headers {headers}", targetUrl, new PrettyPrintDictionary(headers));
+            logger.LogDebug("Calling DELETE {url} with headers {headers}", targetUrl, configuration.CreatePrettyDictionary(headers));
             var resp = await client.DeleteAsync(targetUrl);
             return resp;
         }
@@ -45,7 +46,7 @@ namespace http_forwarder_app.Core
             var contentType = SafeGetContentType(headers);
             var mediaTypeHeaderValue = contentType.ToMediaTypeHeaderValue();
             var finalContent = new StringContent(content ?? string.Empty, mediaTypeHeaderValue);
-            logger.LogDebug("Calling PUT {url} with body {body} and headers {headers}", targetUrl, content ?? string.Empty, new PrettyPrintDictionary(headers));
+            logger.LogDebug("Calling PUT {url} with body {body} and headers {headers}", targetUrl, content ?? string.Empty, configuration.CreatePrettyDictionary(headers));
             var resp = await client.PutAsync(targetUrl, finalContent);
             return resp;
         }

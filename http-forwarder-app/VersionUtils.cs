@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
-using http_forwarder_app.Core;
+using http_forwarder_app.Utils;
 using Semver;
 
 namespace http_forwarder_app;

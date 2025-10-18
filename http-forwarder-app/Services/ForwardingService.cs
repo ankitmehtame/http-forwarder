@@ -1,5 +1,6 @@
 using http_forwarder_app.Core;
 using http_forwarder_app.Models;
+using http_forwarder_app.Utils;
 using Microsoft.Extensions.Logging;
 using OneOf;
 using System.Threading.Tasks;
@@ -59,7 +60,11 @@ public class ForwardingService : IForwardingService
             return NoMatchingRuleResult.Instance;
         }
         var body = requestContent;
-        _logger.LogDebug("{method} called with event {eventName} and body {body}", method, eventName, body);
+        _logger.LogDebug("{method} called with event {eventName}, body {body} and headers {headers}",
+            method,
+            eventName,
+            body?.TrimEnd(),
+            RulesReader.Configuration.CreatePrettyDictionary(requestHeaders));
         if (string.IsNullOrEmpty(body) && fwdRule.HasContent)
         {
             _logger.LogWarning($"Body can't be null");
@@ -90,7 +95,10 @@ public class ForwardingService : IForwardingService
     private async Task<OneOf<HttpResponseRuleResult, NoMatchingRuleResult, RemoteRuleFoundResult>> ProcessGetOrDeleteEvent(string method, string eventName, string? requestHostUrl, IDictionary<string, string> requestHeaders)
     {
         if (method != HttpMethods.Get && method != HttpMethods.Delete) throw new ArgumentException($"Method {method} is not supported here", nameof(method));
-        _logger.LogDebug("{method} called with event {eventName}", method, eventName);
+        _logger.LogDebug("{method} called with event {eventName} and {headers}",
+            method,
+            eventName,
+            RulesReader.Configuration.CreatePrettyDictionary(requestHeaders));
         _logger.LogDebug("Found {rulesCount} rules", AppState.Rules.Length);
         if (AppState.Rules.Length > 0)
         {

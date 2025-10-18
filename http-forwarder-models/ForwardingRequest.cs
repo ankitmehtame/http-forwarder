@@ -16,7 +16,7 @@ public record class ForwardingRequest(
     { }
 
     [JsonIgnore]
-    internal PrettyPrintDictionary? __PrettyHeaders { get; private set; } = null;
+    internal PrettyDictionary? __PrettyHeaders { get; private set; } = null;
 
     public override int GetHashCode()
     {

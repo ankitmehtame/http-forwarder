@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using Microsoft.Extensions.Configuration;
 using Moq;
 using http_forwarder_app.Models;
@@ -7,8 +5,8 @@ using http_forwarder_app.Services;
 using Shouldly;
 using Microsoft.Extensions.Internal;
 using http_forwarder_app;
+using http_forwarder_app.Utils;
 using Microsoft.Extensions.Logging;
-using http_forwarder_app.Core;
 using System.Collections.Immutable;
 
 namespace http_forwarder_unit_tests;

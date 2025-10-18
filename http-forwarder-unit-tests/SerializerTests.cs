@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
-using http_forwarder_app.Core;
 using http_forwarder_app.Models;
+using http_forwarder_app.Utils;
 using Shouldly;
 
 namespace http_forwarder_unit_tests;

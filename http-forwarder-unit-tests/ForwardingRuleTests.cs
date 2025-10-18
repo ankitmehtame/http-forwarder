@@ -5,8 +5,22 @@ using Xunit.Repeat;
 
 namespace http_forwarder_unit_tests;
 
-public class ForwardingRuleTests
+public class ForwardingRuleTests : IDisposable
 {
+    public ForwardingRuleTests()
+    {
+        var currentContext = GetType().Name;
+        PrettyDictionary.CurrentContext = currentContext;
+        PrettyDictionary.SetMaskedKeys([]);
+    }
+
+    public void Dispose()
+    {
+        // Cleanup static state after each test
+        PrettyDictionary.ResetMaskedKeys();
+        GC.SuppressFinalize(this);
+    }
+
     [Fact]
     [Repeat(10)]
     public void ToString_WithNoOptionalParameters_FormatsCorrectly()
@@ -22,7 +36,7 @@ public class ForwardingRuleTests
         var result = rule.ToString();
 
         // Assert
-        result.ShouldBe("Method = GET, Event = test-event, TargetUrl = http://example.com, HasContent = True, Content = , IgnoreSslError = False, Headers = [], Tags = [], Retry = { Allow = False, Expiry = 23:59:59 }");
+        result.ShouldBe("Method = GET, Event = test-event, TargetUrl = http://example.com, HasContent = True, Content = , IgnoreSslError = False, Headers = [], IgnoredRequestHeaders = [], Tags = [], Retry = { Allow = False, Expiry = 23:59:59 }");
     }
 
     [Fact]
@@ -36,7 +50,7 @@ public class ForwardingRuleTests
             targetUrl: "http://api.example.com")
         {
             Headers = new Dictionary<string, string> { { "X-Test", "true" }, { "Content-Type", "application/json" } }.ToImmutableDictionary(),
-            Tags = ["local", "test"]
+            Tags = new string[] { "local", "test" }.ToImmutableHashSet()
         };
 
         // Act
@@ -46,7 +60,8 @@ public class ForwardingRuleTests
         rule.Headers.ShouldNotBeEmpty();
         rule.Headers.Count.ShouldBe(2);
         result.ShouldStartWith("Method = POST, Event = complex-event, TargetUrl = http://api.example.com, HasContent = True, Content = , IgnoreSslError = False, ");
-        result.ShouldContain("Headers = [Content-Type=application/json, X-Test=true]", customMessage: result);
+        result.ShouldContain("Headers = [{Content-Type=application/json}, {X-Test=true}]", customMessage: result);
+        result.ShouldContain("IgnoredRequestHeaders = []");
         result.ShouldContain("Tags = [local, test]", customMessage: result);
         result.ShouldEndWith(", Retry = { Allow = False, Expiry = 23:59:59 }");
     }
@@ -68,7 +83,7 @@ public class ForwardingRuleTests
         var result = rule.ToString();
 
         // Assert
-        result.ShouldBe("Method = PUT, Event = retry-event, TargetUrl = http://another.example.com, HasContent = True, Content = , IgnoreSslError = False, Headers = [], Tags = [], Retry = { Allow = True, Expiry = 23:59:59 }");
+        result.ShouldBe("Method = PUT, Event = retry-event, TargetUrl = http://another.example.com, HasContent = True, Content = , IgnoreSslError = False, Headers = [], IgnoredRequestHeaders = [], Tags = [], Retry = { Allow = True, Expiry = 23:59:59 }");
     }
 
     [Fact]
@@ -82,7 +97,7 @@ public class ForwardingRuleTests
             targetUrl: "http://api.example.com")
         {
             Headers = new Dictionary<string, string> { { "X-Test", "true" }, { "Content-Type", "application/json" } }.ToImmutableDictionary(),
-            Tags = ["local", "test"]
+            Tags = new string[] { "local", "test" }.ToImmutableHashSet()
         }.ToMinimal();
 
         // Act
@@ -105,7 +120,7 @@ public class ForwardingRuleTests
             targetUrl: "http://api.example.com")
         {
             Headers = new Dictionary<string, string> { { "X-Test", "true" }, { "Content-Type", "application/json" } }.ToImmutableDictionary(),
-            Tags = ["local", "test"]
+            Tags = new string[] { "local", "test" }.ToImmutableHashSet()
         };
         var rule2 = new ForwardingRule(
             method: "GET",
@@ -113,9 +128,9 @@ public class ForwardingRuleTests
             targetUrl: "http://api2.example.com")
         {
             Headers = new Dictionary<string, string> { { "X-Test2", "false" } }.ToImmutableDictionary(),
-            Tags = ["local", "cloud"]
+            Tags = new string[] { "local", "cloud" }.ToImmutableHashSet()
         };
-        IEnumerable<ForwardingRule> rules = [rule1, rule2];
+        IEnumerable<ForwardingRule> rules = new ForwardingRule[] { rule1, rule2 };
 
         // Act
         var result = rules.PrintMinimal();
@@ -132,7 +147,7 @@ public class ForwardingRuleTests
         {
             Headers = new Dictionary<string, string> { { "X-Source", "source" } }.ToImmutableDictionary()
         };
-        Dictionary<string, string> requestHeaders = [];
+        Dictionary<string, string> requestHeaders = new Dictionary<string, string>();
 
         // Act
         var merged = rule.MergeHeaders(requestHeaders);
@@ -242,6 +257,90 @@ public class ForwardingRuleTests
         {
             { "X-Source", "source" },
             { "Content-Type", "application/json" },
+            { "X-Request", "request" }
+        }.ToImmutableDictionary();
+        merged.ShouldBe(expected);
+    }
+
+    [Fact]
+    public void MergeHeaders_WithIgnoredRequestHeaders_ExcludesIgnoredHeaders()
+    {
+        // Arrange
+        var rule = new ForwardingRule("GET", "test", "http://a.com")
+        {
+            Headers = new Dictionary<string, string> { { "X-Source", "source" } }.ToImmutableDictionary(),
+            IgnoredRequestHeaders = new string[] { "X-Request-To-Ignore", "X-Another-To-Ignore" }.ToImmutableHashSet()
+        };
+        var requestHeaders = new Dictionary<string, string>
+        {
+            { "X-Request", "request" },
+            { "X-Request-To-Ignore", "ignored" },
+            { "X-Another-To-Ignore", "another-ignored" }
+        };
+
+        // Act
+        var merged = rule.MergeHeaders(requestHeaders);
+
+        // Assert
+        var expected = new Dictionary<string, string>
+        {
+            { "X-Source", "source" },
+            { "X-Request", "request" }
+        }.ToImmutableDictionary();
+        merged.ShouldBe(expected);
+    }
+
+    [Fact]
+    public void MergeHeaders_WithIgnoredRequestHeadersMatchingRegex_ExcludesIgnoredHeaders()
+    {
+        // Arrange
+        var rule = new ForwardingRule("GET", "test", "http://a.com")
+        {
+            Headers = new Dictionary<string, string> { { "X-Source", "source" } }.ToImmutableDictionary(),
+            IgnoredRequestHeaders = new string[] { "^X-Request-To-Ignore.*", "X-Another-To-Ignore$" }.ToImmutableHashSet()
+        };
+        var requestHeaders = new Dictionary<string, string>
+        {
+            { "X-Request", "request" },
+            { "X-Request-To-Ignore-A", "ignored-a" },
+            { "X-Request-To-Ignore-B", "ignored-b" },
+            { "X-Another-To-Ignore", "another-ignored" }
+        };
+
+        // Act
+        var merged = rule.MergeHeaders(requestHeaders);
+
+        // Assert
+        var expected = new Dictionary<string, string>
+        {
+            { "X-Source", "source" },
+            { "X-Request", "request" }
+        }.ToImmutableDictionary();
+        merged.ShouldBe(expected);
+    }
+
+    [Fact]
+    public void MergeHeaders_WhenNoContent_ShouldIgnoreRequestContentType()
+    {
+        // Arrange
+        var rule = new ForwardingRule("GET", "test", "http://a.com")
+        {
+            HasContent = false,
+            Headers = new Dictionary<string, string> { { "X-Source", "source" } }.ToImmutableDictionary()
+        };
+        var requestHeaders = new Dictionary<string, string>
+        {
+            { "X-Request", "request" },
+            { "Content-Type", "application/json" }
+        };
+
+        // Act
+        var merged = rule.MergeHeaders(requestHeaders);
+
+        // Assert
+        var expected = new Dictionary<string, string>
+        {
+            { "X-Source", "source" },
             { "X-Request", "request" }
         }.ToImmutableDictionary();
         merged.ShouldBe(expected);

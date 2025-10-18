@@ -1,7 +1,7 @@
 using Google.Cloud.PubSub.V1;
-using http_forwarder_app.Core;
 using http_forwarder_app.Models;
 using http_forwarder_app.Models.Services;
+using http_forwarder_app.Utils;
 using Microsoft.Extensions.Logging;
 using OneOf;
 

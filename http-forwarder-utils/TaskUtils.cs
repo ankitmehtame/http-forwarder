@@ -1,4 +1,4 @@
-namespace http_forwarder_app.Core;
+namespace http_forwarder_app.Utils;
 
 public static class TaskExtensions
 {

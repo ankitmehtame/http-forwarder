@@ -5,8 +5,22 @@ using Xunit;
 
 namespace http_forwarder_unit_tests;
 
-public class ForwardingRequestTests
+public class ForwardingRequestTests : IDisposable
 {
+    public ForwardingRequestTests()
+    {
+        var currentContext = GetType().Name;
+        PrettyDictionary.CurrentContext = currentContext;
+        PrettyDictionary.SetMaskedKeys([]);
+    }
+
+    public void Dispose()
+    {
+        // Cleanup static state after each test
+        PrettyDictionary.ResetMaskedKeys();
+        GC.SuppressFinalize(this);
+    }
+
     [Fact]
     public void Equals_WhenTwoInstancesAreSame_ReturnsTrue()
     {
@@ -90,6 +104,6 @@ public class ForwardingRequestTests
         var result = request.ToString();
 
         // Assert
-        result.ShouldBe("Method = GET, Event = test-event, Content = content, RequestHeaders = [Content-Type=application/json, X-Test=true]");
+        result.ShouldBe("Method = GET, Event = test-event, Content = content, RequestHeaders = [{Content-Type=application/json}, {X-Test=true}]");
     }
 }
