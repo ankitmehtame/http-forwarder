@@ -96,7 +96,7 @@ public class MemoizerTests
     }
 
     [Fact]
-    public void Memoize_WithConcurrentCalls_ShouldBeThreadSafeAndCallFuncOnce()
+    public async Task Memoize_WithConcurrentCalls_ShouldBeThreadSafeAndCallFuncOnce()
     {
         // Arrange
         var callCount = 0;
@@ -117,7 +117,7 @@ public class MemoizerTests
             tasks.Add(Task.Run(() => memoizer.Memoize(input)));
         }
 
-        Task.WhenAll(tasks).Wait();
+        await Task.WhenAll(tasks);
         var results = tasks.Select(t => t.Result).ToList();
 
         // Assert
