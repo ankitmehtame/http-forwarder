@@ -146,6 +146,7 @@ public class RetryBackgroundService : BackgroundService
             };
             await Parallel.ForEachAsync(pendingNow, parallelOptions, async (request, token) =>
             {
+                if (token.IsCancellationRequested) return;
                 await ProcessRequestAsync(request);
             });
         }
