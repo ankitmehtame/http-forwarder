@@ -23,6 +23,7 @@ public class ForwardingRuleTests : IDisposable
 
     [Fact]
     [Repeat(10)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "xUnit1005:Fact methods should not have test data", Justification = "Special use-case for repeating a test")]
     public void ToString_WithNoOptionalParameters_FormatsCorrectly()
     {
         // Arrange
@@ -41,6 +42,7 @@ public class ForwardingRuleTests : IDisposable
 
     [Fact]
     [Repeat(10)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "xUnit1005:Fact methods should not have test data", Justification = "Special use-case for repeating a test")]
     public void ToString_WithHeadersAndTags_FormatsCorrectly()
     {
         // Arrange
@@ -68,6 +70,7 @@ public class ForwardingRuleTests : IDisposable
 
     [Fact]
     [Repeat(10)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "xUnit1005:Fact methods should not have test data", Justification = "Special use-case for repeating a test")]
     public void ToString_WithRetryEnabled_FormatsCorrectly()
     {
         // Arrange
@@ -88,6 +91,7 @@ public class ForwardingRuleTests : IDisposable
 
     [Fact]
     [Repeat(10)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "xUnit1005:Fact methods should not have test data", Justification = "Special use-case for repeating a test")]
     public void Minimal_ToString_WithTags_FormatsCorrectly()
     {
         // Arrange
@@ -107,10 +111,9 @@ public class ForwardingRuleTests : IDisposable
         result.ShouldBe("Method = POST, Event = complex-event, Tags = [local, test]");
     }
 
-
-
     [Fact]
     [Repeat(10)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "xUnit1005:Fact methods should not have test data", Justification = "Special use-case for repeating a test")]
     public void MinimalEnumerable_ToString_FormatsCorrectly()
     {
         // Arrange
