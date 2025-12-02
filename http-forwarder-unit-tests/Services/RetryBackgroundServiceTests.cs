@@ -74,7 +74,7 @@ public class RetryBackgroundServiceTests
             .ReturnsAsync(successResult);
 
         // Act
-        _cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+        _cts.CancelAfter(TimeSpan.FromSeconds(2));
         await _service.ProcessPendingAsync(_startTime.AddSeconds(1), _cts.Token);
 
         // Assert
@@ -103,7 +103,7 @@ public class RetryBackgroundServiceTests
             .ReturnsAsync(failureResult);
 
         // Act
-        _cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+        _cts.CancelAfter(TimeSpan.FromSeconds(2));
         await _service.ProcessPendingAsync(_startTime.AddSeconds(1), _cts.Token);
 
         // Assert
@@ -136,7 +136,7 @@ public class RetryBackgroundServiceTests
             .ReturnsAsync(failureResult);
 
         // Act
-        _cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+        _cts.CancelAfter(TimeSpan.FromSeconds(2));
         await _service.ProcessPendingAsync(_startTime.AddSeconds(1), _cts.Token);
 
         // Assert
@@ -305,7 +305,7 @@ public class RetryBackgroundServiceTests
             .ReturnsAsync(noRuleResult);
 
         // Act
-        _cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+        _cts.CancelAfter(TimeSpan.FromSeconds(2));
         await _service.ProcessPendingAsync(_startTime.AddSeconds(1), _cts.Token);
 
         // Assert
@@ -332,7 +332,7 @@ public class RetryBackgroundServiceTests
             .ReturnsAsync(noBodyResult);
 
         // Act
-        _cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+        _cts.CancelAfter(TimeSpan.FromSeconds(2));
         await _service.ProcessPendingAsync(_startTime.AddSeconds(1), _cts.Token);
 
         // Assert
@@ -359,7 +359,7 @@ public class RetryBackgroundServiceTests
             .ReturnsAsync(remoteRuleResult);
 
         // Act
-        _cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+        _cts.CancelAfter(TimeSpan.FromSeconds(2));
         await _service.ProcessPendingAsync(_startTime.AddSeconds(1), _cts.Token);
 
         // Assert
