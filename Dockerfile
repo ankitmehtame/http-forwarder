@@ -1,17 +1,22 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /app
 
-# copy sln, csproj and restore
+# Copy solution and project files
 COPY *.sln ./
-COPY http-forwarder-app/. ./http-forwarder-app/
-COPY http-forwarder-models/. ./http-forwarder-models/
-COPY http-forwarder-utils/. ./http-forwarder-utils/
-COPY http-forwarder-cloud/. ./http-forwarder-cloud/
-COPY http-forwarder-unit-tests/. ./http-forwarder-unit-tests/
-COPY http-forwarder-acceptance-tests/. ./http-forwarder-acceptance-tests/
-COPY http-forwarder-app-function/. ./http-forwarder-app-function/
+COPY http-forwarder-app/*.csproj ./http-forwarder-app/
+COPY http-forwarder-models/*.csproj ./http-forwarder-models/
+COPY http-forwarder-utils/*.csproj ./http-forwarder-utils/
+COPY http-forwarder-cloud/*.csproj ./http-forwarder-cloud/
+COPY http-forwarder-unit-tests/*.csproj ./http-forwarder-unit-tests/
+COPY http-forwarder-acceptance-tests/*.csproj ./http-forwarder-acceptance-tests/
+COPY http-forwarder-app-function/*.csproj ./http-forwarder-app-function/
 
-RUN dotnet build http-forwarder.sln -c Release
+# Restore packages
+RUN dotnet restore http-forwarder.sln
+
+# Copy everything else and build
+COPY . .
+RUN dotnet build http-forwarder.sln -c Release --no-restore
 
 RUN dotnet publish http-forwarder-app/http-forwarder-app.csproj -c Release -o out --no-build
 
