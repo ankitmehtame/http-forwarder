@@ -5,7 +5,7 @@ on:
     branches:
       - "**"
   pull_request:
-    branches: [ master ]
+    branches: [ master, main ]
   schedule:
     - cron: '0 4 1 * *'
   workflow_dispatch:
@@ -69,11 +69,11 @@ jobs:
           ${{ env.GITHUB_REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
         # Docker tags based on the following events/attributes
         tags: |
-          type=semver,pattern={{version}},priority=900,prefix=,suffix=.${{ github.run_number }},enable=${{ github.ref == 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
-          type=semver,pattern={{version}},priority=900,prefix=rc-,suffix=.${{ github.run_number }},enable=${{ github.ref != 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
-          type=semver,pattern={{major}}.{{minor}},priority=825,prefix=,suffix=,enable=${{ github.ref == 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
-          type=semver,pattern={{major}}.{{minor}},priority=825,prefix=rc-,suffix=,enable=${{ github.ref != 'refs/heads/master' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
-          type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+          type=semver,pattern={{version}},priority=900,prefix=,suffix=.${{ github.run_number }},enable=${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
+          type=semver,pattern={{version}},priority=900,prefix=rc-,suffix=.${{ github.run_number }},enable=${{ github.ref != 'refs/heads/master' && github.ref != 'refs/heads/main' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
+          type=semver,pattern={{major}}.{{minor}},priority=825,prefix=,suffix=,enable=${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
+          type=semver,pattern={{major}}.{{minor}},priority=825,prefix=rc-,suffix=,enable=${{ github.ref != 'refs/heads/master' && github.ref != 'refs/heads/main' }},value=${{ steps.nbgv.outputs.SimpleVersion }}
+          type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
         flavor: |
           latest=false
 
