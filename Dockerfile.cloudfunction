@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /app
 
 # Copy the projects and its dependencies
@@ -14,7 +14,7 @@ RUN dotnet restore ./http-forwarder-cloud/http-forwarder-cloud.csproj
 
 RUN dotnet publish ./http-forwarder-app-function/http-forwarder-app-function.csproj -c Release -o /app/publish /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "http-forwarder-app-function.dll"]
