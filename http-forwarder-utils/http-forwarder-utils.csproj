@@ -9,8 +9,8 @@
     <ProjectReference Include="../http-forwarder-models/http-forwarder-models.csproj"/>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="*"/>
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.*"/>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.*"/>
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
   </ItemGroup>
 </Project>

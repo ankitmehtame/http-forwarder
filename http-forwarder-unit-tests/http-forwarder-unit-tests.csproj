@@ -7,14 +7,14 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="coverlet.collector" Version="6.0.2" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
-    <PackageReference Include="xunit" Version="2.*" />
-    <PackageReference Include="Xunit.Repeat" Version="*" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
-    <PackageReference Include="Shouldly" Version="*" />
-    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="*" />
-    <PackageReference Include="Moq" Version="*" />
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="Xunit.Repeat" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" />
+    <PackageReference Include="Moq" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../http-forwarder-app-function/http-forwarder-app-function.csproj" />

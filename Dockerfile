@@ -1,6 +1,9 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /app
 
+# Copy the central package management file first (for better layer caching)
+COPY Directory.Packages.props ./
+
 # Copy solution and project files
 COPY *.sln ./
 COPY http-forwarder-app/*.csproj ./http-forwarder-app/

@@ -1,6 +1,9 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /app
 
+# Copy the central package management file first
+COPY Directory.Packages.props ./
+
 # Copy the projects and its dependencies
 COPY ./http-forwarder-app-function/ ./http-forwarder-app-function/
 COPY ./http-forwarder-cloud/ ./http-forwarder-cloud/
