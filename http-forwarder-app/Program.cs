@@ -16,6 +16,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi;
+using Microsoft.OpenApi.Models;
 
 var newArgs = args.ToList();
 AddEnvironmentVariables(newArgs, new Dictionary<string, string> { { "VERSION", VersionUtils.InfoVersion } });

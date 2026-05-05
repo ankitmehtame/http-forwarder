@@ -1,0 +1,42 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Core ASP.NET Core packages -->
+    <PackageVersion Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.9" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
+
+    <!-- Google Cloud packages -->
+    <PackageVersion Include="Google.Cloud.Functions.Framework" Version="2.0.0" />
+    <PackageVersion Include="Google.Cloud.Functions.Hosting" Version="2.0.0" />
+    <PackageVersion Include="Google.Cloud.PubSub.V1" Version="3.0.0" />
+
+    <!-- Logging packages -->
+    <PackageVersion Include="Serilog.Extensions.Logging.File" Version="3.0.0" />
+
+    <!-- API documentation -->
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+
+    <!-- Versioning utilities -->
+    <PackageVersion Include="Semver" Version="3.0.0" />
+
+    <!-- Error handling -->
+    <PackageVersion Include="OneOf" Version="3.0.271" />
+
+    <!-- Testing packages -->
+    <PackageVersion Include="Xunit.Repeat" Version="1.1.26" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="Shouldly" Version="4.2.1" />
+    <PackageVersion Include="Moq" Version="4.20.72" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+
+    <!-- ASP.NET Core testing - separately defined to avoid version conflicts -->
+    <PackageVersion Include="Microsoft.AspNetCore.Testing" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
+  </ItemGroup>
+</Project>

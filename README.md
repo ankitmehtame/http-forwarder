@@ -7,16 +7,22 @@ http-forwarder is a small HTTP proxy/forwarder intended to accept incoming HTTP 
 
 ## What this project does
 - Listens for inbound HTTP requests on a configurable port.
-- Forwards those requests to an internal or private target URL (configurable).
-- Preserves request method, path, headers and body by default, with options to add or override headers.
-- Exposes a simple health endpoint for liveness checks.
+- Uses JSON-based forwarding rules (`conf/rules.json`) to route requests to internal or private target URLs.
+- Preserves request method, path, headers and body by default, with options to add or override headers per rule.
+- Exposes API endpoints for forwarding (`/forward/{eventName}`) and a ping endpoint (`/api/ping`) for liveness checks.
+- Supports remote rule publishing to Google Cloud Pub/sub for multi-instance setups.
 - Runs as a standalone binary or inside a container.
+- Includes Swagger UI at the root URL for API documentation.
 
 ## How it works (high level)
 - The forwarder accepts an incoming HTTP connection on its listen port.
-- It maps the request to a configured backend (single target or simple routing) and performs an HTTP request to that backend.
+- It matches the request against JSON-based forwarding rules (`conf/rules.json`) using the event name and HTTP method, then performs an HTTP request to the configured backend.
 - Response from the backend is proxied back to the original client, including status, headers and body.
+- Rules can be tagged with location tags (e.g., "home", "cloud") so only matching instances process specific requests.
+- Requests that match rules tagged for other locations can be published to Google Cloud Pub/Sub for remote processing.
+- Failed requests (HTTP 5xx) with retry enabled are stored and retried automatically with exponential backoff.
 - Basic logging and timeout handling are applied to avoid hanging requests.
+- Swagger/OpenAPI documentation is automatically generated and available at the root URL.
 
 ## Build (Docker)
 From the repository root:
@@ -30,11 +36,19 @@ docker run -it --rm -p 5000:8080 --name http-forwarder-app http-forwarder-app
 ```
 
 ## Common configuration
-- `LISTEN_PORT` (default: 8080) — port the forwarder listens on inside the container.
-- `TARGET_URL` — the backend URL to forward requests to (e.g. `http://10.0.0.5:80` or `http://service.local`).
-- `TIMEOUT` — request timeout when calling the backend.
-- `LOG_LEVEL` — logging verbosity (`info`, `debug`, `error`).
-- `ADDITIONAL_HEADERS` — optional headers to inject when forwarding (format depends on implementation).
+
+The application is configured through environment variables. Most routing is done through JSON rule files (`conf/rules.json`).
+
+- `LOCATION_TAG` — **Required**. Tag used to filter which rules this instance should process (e.g., "home", "cloud"). Rules are tagged via the `tags` array in the JSON config.
+- `GOOGLE_CLOUD_PROJECT_ID` — Google Cloud project ID for Pub/Sub publishing (used when `PUBLISHER_ENABLED=true`).
+- `PUBLISHER_ENABLED` — If `true`, rules not matching this instance's tag are published to Pub/Sub for other instances to process.
+- `PUBSUB_TOPIC_ID` / `PUBSUB_TOPIC_ID_<NAME>` — Pub/Sub topic IDs for remote publishing.
+- `PUBSUB_SUBSCRIPTION_ID` / `PUBSUB_SUBSCRIPTION_ID_<NAME>` — Pub/Sub subscription IDs.
+- `MASKED_HEADERS` — Comma-separated header keys to mask in logs.
+- `PORT` — HTTP port to listen on (default: `8080`, also used for the container).
+- `STORAGE_DIR_PATH` — Path for temporary storage of failed requests (default: `storage`).
+- `RETRY_POLICY_MAX_CONCURRENCY` — Max concurrent retry attempts (default: `4`)
+- `RETRY_BACKGROUND_MONITORING_ENABLED` — Enable retry monitoring (default: `true`).
 
 ## Docker volumes configuration
 ```yaml
@@ -52,23 +66,24 @@ storage folder is for temporary storage - up to 24 hours, after which any failed
   curl -i http://localhost:5000/forward/event-name
   ```
 
-- Check health:
+- Check liveness (ping endpoint):
   ```
-  curl -i http://localhost:5000/health
+  curl -i http://localhost:5000/api/ping
   ```
 
+- View API documentation:
+  Visit http://localhost:5000/swagger in your browser
+
 ## Sample rules config
+Rules are stored in `conf/rules.json`. Each rule defines how to forward a request matching a method and event name.
+
 ```json
 [
     {
         "method": "GET",
         "event": "TEST",
         "targetUrl": "https://httpbin.org/get?name=test&value=123",
-        "tags": [
-            "local",
-            "home",
-            "cloud"
-        ]
+        "tags": ["local", "home", "cloud"]
     },
     {
         "method": "POST",
@@ -79,16 +94,15 @@ storage folder is for temporary storage - up to 24 hours, after which any failed
             "Content-Type": "application/json"
         },
         "hasContent": false,
+        "ignoreSslError": false,
+        "ignoredRequestHeaders": ["X-Forwarded-For"],
         "retry": {
             "allow": true,
             "expiry": "23:59:59"
         },
-        "tags": [
-            "local",
-            "home",
-            "cloud"
-        ]
+        "tags": ["local", "home", "cloud"]
     }
+]
 ```
 Credit to https://httpbin.org for offering an internet based service to test REST functions.
 
@@ -109,8 +123,13 @@ Success/Failure: If a retry attempt is successful, the request is removed from t
 - If you need multiple backend targets or complex routing, consider using a dedicated reverse proxy (nginx, Traefik) or an API gateway.
 
 ## How I use this application
-I have multiple instances running. Few on my local homelab (for redundancy), another on Google Cloud as a Cloud Run function. This is so that some of my mobile devices can forward calls to the cloud first, which will simply queue up the requests for an instance to prcoess. Rules can be tagged as running on home or cloud, so only that type of instance will process the request.
-For example, I want requests to my Home Assistant to be processed by my local homelab instance, whereas any requests to Telegram (one of my preferred notification service) can be processed in the cloud as well as at home.
+I have multiple instances running: some on my local homelab (for redundancy) and others on Google Cloud as Cloud Run functions. This setup allows mobile devices to forward calls to the cloud, which then queues the requests for an available instance to process based on location tags.
+
+Rules can be tagged with location tags (e.g., "home", "cloud"), ensuring only matching instances process specific requests. For example:
+- Home Assistant requests are processed by my local homelab instances.
+- Telegram notifications can be processed by both local homelab and cloud instances for redundancy.
+
+Rules that don't match this instance's location tag are published to Google Cloud Pub/Sub, allowing other instances to pick them up.
 
 ## Contributing
 - Fixes, improvements and documentation updates are welcome via pull requests.
