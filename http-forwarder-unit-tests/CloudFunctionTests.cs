@@ -77,6 +77,28 @@ public class FunctionUnitTests
         responseBody.ShouldContain($"Not allowed event {eventName}");
     }
 
+    [Fact]
+    public async Task HandleAsync_InvalidAllowedEventRegex_ReturnsNok()
+    {
+        // Arrange
+        var inMemorySettings = new Dictionary<string, string?> {
+            {"ALLOWED_EVENTS", "["},
+            {"GOOGLE_CLOUD_PROJECT_ID", projectId},
+            {"PUBSUB_TOPIC_ID", topicId},
+        };
+        const string requestMethod = "POST";
+        var setupData = Setup(requestMethod: requestMethod, inMemorySettings: inMemorySettings);
+
+        var function = new http_forwarder_app.Functions.Function(setupData.MockLogger.Object, setupData.Configuration, setupData.MockPublishingService.Object);
+
+        // Act
+        await function.HandleAsync(setupData.HttpContext);
+
+        // Assert
+        setupData.RespFeature.StatusCode.ShouldBe((int)HttpStatusCode.NotAcceptable);
+        setupData.MockPublishingService.Verify(p => p.Publish(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<ForwardingRequest>()), Times.Never());
+    }
+
     [Theory]
     [InlineData("GET")]
     [InlineData("DELETE")]

@@ -30,8 +30,14 @@ public static class Constants
 
     public const string MASKED_HEADERS = "MASKED_HEADERS";
 
+    public const string OUTBOUND_HTTP_TIMEOUT_SECONDS = "OUTBOUND_HTTP_TIMEOUT_SECONDS";
+
+    public const string REGEX_MATCH_TIMEOUT_MILLISECONDS = "REGEX_MATCH_TIMEOUT_MILLISECONDS";
+
 
     public static readonly TimeSpan RetryIntervalMin = TimeSpan.FromSeconds(30);
     public static readonly TimeSpan RetryIntervalMax = TimeSpan.FromHours(1);
     public static readonly TimeSpan RetryExpiry = TimeSpan.FromHours(24);
+    public static readonly TimeSpan OutboundHttpTimeoutDefault = TimeSpan.FromSeconds(100);
+    public static readonly TimeSpan RegexMatchTimeoutDefault = TimeSpan.FromMilliseconds(100);
 }

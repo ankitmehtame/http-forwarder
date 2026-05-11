@@ -30,14 +30,16 @@ builder.Services.AddControllers(options =>
     // is missing/unexpected. This keeps backward compatibility for non-JSON clients.
     options.InputFormatters.Insert(0, new http_forwarder_app.Formatters.RawRequestBodyFormatter());
 });
-builder.Services.AddHttpClient().AddHttpClient(Constants.HTTP_CLIENT_IGNORE_SSL_ERROR).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+var outboundHttpTimeout = builder.Configuration.GetOutboundHttpTimeout();
+builder.Services.ConfigureHttpClientDefaults(httpClientBuilder => httpClientBuilder.ConfigureHttpClient(client => client.Timeout = outboundHttpTimeout));
+builder.Services.AddHttpClient(Constants.HTTP_CLIENT_IGNORE_SSL_ERROR).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
 {
     ClientCertificateOptions = ClientCertificateOption.Manual,
     ServerCertificateCustomValidationCallback =
         (httpRequestMessage, cert, cetChain, policyErrors) =>
         {
             return true;
-        }
+    }
 });
 builder.Services.AddSwaggerGen(c => c.SwaggerDoc("v1", new OpenApiInfo
 {

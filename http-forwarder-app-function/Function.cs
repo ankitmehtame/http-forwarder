@@ -20,6 +20,7 @@ public class Function : IHttpFunction
     private readonly string _topicId;
 
     private readonly HashSet<string> _allowedEvents;
+    private readonly TimeSpan _regexMatchTimeout;
     private static long InstantiationCounter = 0;
     private readonly IPublishingService _publishingService;
 
@@ -46,6 +47,7 @@ public class Function : IHttpFunction
             _allowedEvents = allowedEvents
                                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            _regexMatchTimeout = configuration.GetRegexMatchTimeout();
 
             _projectId = configuration.GetCloudProjectId() ?? string.Empty;
             _topicId = configuration.GetGenericPubSubTopicId() ?? string.Empty;
@@ -81,7 +83,7 @@ public class Function : IHttpFunction
         }
         if (!(_allowedEvents.Contains("*") ||
             _allowedEvents.Contains(eventName) ||
-            _allowedEvents.Any(allowedEventName => Regex.IsMatch(eventName, allowedEventName, RegexOptions.IgnoreCase))))
+            _allowedEvents.Any(allowedEventName => SafeRegex.IsMatch(eventName, allowedEventName, RegexOptions.IgnoreCase, _regexMatchTimeout))))
         {
             context.Response.StatusCode = StatusCodes.Status406NotAcceptable;
             await context.Response.WriteAsync($"Not allowed event {eventName}");
