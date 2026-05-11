@@ -74,4 +74,28 @@ public static class ConfigurationExtensions
         return (configuration.GetValue<string?>(Constants.MASKED_HEADERS, string.Empty) ?? string.Empty).Trim();
     }
 
+    public static TimeSpan GetOutboundHttpTimeout(this IConfiguration configuration)
+    {
+        return GetPositiveTimeSpan(
+            configuration,
+            Constants.OUTBOUND_HTTP_TIMEOUT_SECONDS,
+            Constants.OutboundHttpTimeoutDefault,
+            TimeSpan.FromSeconds);
+    }
+
+    public static TimeSpan GetRegexMatchTimeout(this IConfiguration configuration)
+    {
+        return GetPositiveTimeSpan(
+            configuration,
+            Constants.REGEX_MATCH_TIMEOUT_MILLISECONDS,
+            Constants.RegexMatchTimeoutDefault,
+            TimeSpan.FromMilliseconds);
+    }
+
+    private static TimeSpan GetPositiveTimeSpan(IConfiguration configuration, string key, TimeSpan defaultValue, Func<double, TimeSpan> toTimeSpan)
+    {
+        var value = configuration.GetValue<double?>(key);
+        return value is > 0 ? toTimeSpan(value.Value) : defaultValue;
+    }
+
 }

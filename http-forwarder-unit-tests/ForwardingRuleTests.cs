@@ -323,6 +323,29 @@ public class ForwardingRuleTests : IDisposable
     }
 
     [Fact]
+    public void MergeHeaders_WithInvalidIgnoredRequestHeaderRegex_IgnoresPattern()
+    {
+        // Arrange
+        var rule = new ForwardingRule("GET", "test", "http://a.com")
+        {
+            Headers = new Dictionary<string, string> { { "X-Source", "source" } }.ToImmutableDictionary(),
+            IgnoredRequestHeaders = new string[] { "[" }.ToImmutableHashSet()
+        };
+        var requestHeaders = new Dictionary<string, string> { { "X-Request", "request" } };
+
+        // Act
+        var merged = rule.MergeHeaders(requestHeaders);
+
+        // Assert
+        var expected = new Dictionary<string, string>
+        {
+            { "X-Source", "source" },
+            { "X-Request", "request" }
+        }.ToImmutableDictionary();
+        merged.ShouldBe(expected);
+    }
+
+    [Fact]
     public void MergeHeaders_WhenNoContent_ShouldIgnoreRequestContentType()
     {
         // Arrange

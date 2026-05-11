@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Text;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 
 namespace http_forwarder_app.Models;
 
@@ -174,19 +173,7 @@ public static class ForwardingRuleExtensions
 
         static bool IsSafeRegexMatchAny(string input, IEnumerable<string> patterns)
         {
-            return patterns.Any(pattern => IsSafeRegexMatch(input, pattern));
-        }
-
-        static bool IsSafeRegexMatch(string input, string pattern)
-        {
-            try
-            {
-                return Regex.IsMatch(input, pattern);
-            }
-            catch (Exception)
-            {
-                return false;
-            }
+            return patterns.Any(pattern => SafeRegex.IsMatch(input, pattern));
         }
 
         var mergedHeaders = forwardingRule.Headers.ToDictionary();
