@@ -4,6 +4,56 @@ namespace http_forwarder_app.Core;
 
 public static class ConfigurationExtensions
 {
+    public static void ValidateStartupConfiguration(this IConfiguration configuration)
+    {
+        var errors = new List<string>();
+        var locationTag = configuration.GetLocationTag();
+
+        if (string.IsNullOrWhiteSpace(locationTag))
+        {
+            errors.Add($"{Constants.LOCATION_TAG} is required");
+        }
+
+        ValidatePositiveNumber(configuration, Constants.OUTBOUND_HTTP_TIMEOUT_SECONDS, errors);
+        ValidatePositiveNumber(configuration, Constants.REGEX_MATCH_TIMEOUT_MILLISECONDS, errors);
+
+        if (configuration.IsPublisherEnabled())
+        {
+            if (string.IsNullOrWhiteSpace(configuration.GetCloudProjectId()))
+            {
+                errors.Add($"{Constants.CLOUD_PROJECT_ID} is required when {Constants.PUBLISHER_ENABLED}=true");
+            }
+
+            if (!HasAnyConfiguredTopic(configuration))
+            {
+                errors.Add($"At least one {Constants.TOPIC_ID_PREFIX}* value is required when {Constants.PUBLISHER_ENABLED}=true");
+            }
+        }
+
+        if (configuration.IsListenerEnabled())
+        {
+            if (string.IsNullOrWhiteSpace(configuration.GetCloudProjectId()))
+            {
+                errors.Add($"{Constants.CLOUD_PROJECT_ID} is required when {Constants.LISTENER_ENABLED}=true");
+            }
+
+            if (string.IsNullOrWhiteSpace(configuration.GetGenericSubscriptionId()))
+            {
+                errors.Add($"{Constants.GENERIC_SUBSCRIPTION_ID} is required when {Constants.LISTENER_ENABLED}=true");
+            }
+
+            if (!string.IsNullOrWhiteSpace(locationTag) && string.IsNullOrWhiteSpace(configuration.GetSubscriptionId(locationTag)))
+            {
+                errors.Add($"{configuration.GetSubscriptionIdConfigurationVariable(locationTag)} is required when {Constants.LISTENER_ENABLED}=true");
+            }
+        }
+
+        if (errors.Count > 0)
+        {
+            throw new InvalidOperationException($"Configuration validation failed: {string.Join("; ", errors)}");
+        }
+    }
+
     public static bool IsListenerEnabled(this IConfiguration configuration)
     {
         return configuration.GetValue<bool?>(Constants.LISTENER_ENABLED) ?? false;
@@ -96,6 +146,28 @@ public static class ConfigurationExtensions
     {
         var value = configuration.GetValue<double?>(key);
         return value is > 0 ? toTimeSpan(value.Value) : defaultValue;
+    }
+
+    private static void ValidatePositiveNumber(IConfiguration configuration, string key, IList<string> errors)
+    {
+        var configuredValue = configuration.GetValue<string?>(key);
+        if (string.IsNullOrWhiteSpace(configuredValue))
+        {
+            return;
+        }
+
+        if (!double.TryParse(configuredValue, out var value) || value <= 0)
+        {
+            errors.Add($"{key} must be a positive number when configured");
+        }
+    }
+
+    private static bool HasAnyConfiguredTopic(IConfiguration configuration)
+    {
+        return configuration.AsEnumerable().Any(pair =>
+            !string.IsNullOrWhiteSpace(pair.Value)
+            && (string.Equals(pair.Key, Constants.GENERIC_TOPIC_ID, StringComparison.OrdinalIgnoreCase)
+                || pair.Key.StartsWith(Constants.TOPIC_ID_PREFIX, StringComparison.OrdinalIgnoreCase)));
     }
 
 }
