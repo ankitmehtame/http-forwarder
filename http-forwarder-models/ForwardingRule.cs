@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Text;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 
 namespace http_forwarder_app.Models;
 
@@ -166,14 +167,14 @@ public static class ForwardingRuleExtensions
         return "[" + string.Join(", ", rules.Select(r => "{" + r.ToMinimal().ToString() + "}")) + "]";
     }
 
-    public static ImmutableDictionary<string, string> MergeHeaders(this ForwardingRule forwardingRule, IDictionary<string, string> requestHeaders)
+    public static ImmutableDictionary<string, string> MergeHeaders(this ForwardingRule forwardingRule, IDictionary<string, string> requestHeaders, ILogger? logger = null)
     {
         if (requestHeaders.Count == 0) return forwardingRule.Headers;
         if (forwardingRule.Headers.Count == 0) return requestHeaders.ToImmutableDictionary();
 
-        static bool IsSafeRegexMatchAny(string input, IEnumerable<string> patterns)
+        bool IsSafeRegexMatchAny(string input, IEnumerable<string> patterns)
         {
-            return patterns.Any(pattern => SafeRegex.IsMatch(input, pattern));
+            return patterns.Any(pattern => SafeRegex.IsMatch(input, pattern, logger: logger));
         }
 
         var mergedHeaders = forwardingRule.Headers.ToDictionary();

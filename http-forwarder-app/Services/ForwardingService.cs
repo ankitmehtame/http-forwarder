@@ -80,13 +80,13 @@ public class ForwardingService : IForwardingService
                         eventName: eventName,
                         targetUrl: targetUrl,
                         content: body,
-                        headers: fwdRule.MergeHeaders(requestHeaders),
+                        headers: fwdRule.MergeHeaders(requestHeaders, _logger),
                         ignoreSslError: fwdRule.IgnoreSslError)
                     : RestClient.MakePutCall(
                         eventName: eventName,
                         targetUrl: targetUrl,
                         content: body,
-                        headers: fwdRule.MergeHeaders(requestHeaders),
+                        headers: fwdRule.MergeHeaders(requestHeaders, _logger),
                         ignoreSslError: fwdRule.IgnoreSslError);
         var response = await call;
         return new HttpResponseRuleResult(response, fwdRule);
@@ -117,8 +117,8 @@ public class ForwardingService : IForwardingService
         }
         var targetUrl = GetValidTargetUrl(fwdRule, requestHostUrl);
         var call = method == HttpMethods.Get
-                    ? RestClient.MakeGetCall(eventName, targetUrl, fwdRule.MergeHeaders(requestHeaders), fwdRule.IgnoreSslError)
-                    : RestClient.MakeDeleteCall(eventName, targetUrl, fwdRule.MergeHeaders(requestHeaders), fwdRule.IgnoreSslError);
+                    ? RestClient.MakeGetCall(eventName, targetUrl, fwdRule.MergeHeaders(requestHeaders, _logger), fwdRule.IgnoreSslError)
+                    : RestClient.MakeDeleteCall(eventName, targetUrl, fwdRule.MergeHeaders(requestHeaders, _logger), fwdRule.IgnoreSslError);
         var response = await call;
         return new HttpResponseRuleResult(response, fwdRule);
     }
