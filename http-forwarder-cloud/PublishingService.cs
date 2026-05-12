@@ -42,7 +42,7 @@ public class PublishingService : IPublishingService
         }
         catch (Exception ex)
         {
-            _logger.LogError("Failed to publish message to Pub/Sub: {errorMessage} for {event} & method {requestMethod}", ex, eventName, requestMethod);
+            _logger.LogError(ex, "Failed to publish message to Pub/Sub for event {eventName} & method {requestMethod}", eventName, requestMethod);
             return new RemoteRulePublishFailureResult(ex.Message);
         }
     }

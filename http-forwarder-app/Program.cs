@@ -77,6 +77,12 @@ app.UseSwaggerUI(c =>
 
 app.UseRouting();
 
+app.Use(async (context, next) =>
+{
+    context.Request.EnableBuffering();
+    await next();
+});
+
 app.UseAuthorization();
 
 app.MapControllers();
@@ -94,13 +100,6 @@ logger.LogDebug("TZ is {TZ}", TimeZoneInfo.Local.DisplayName);
 var forwardingRulesReader = app.Services.GetRequiredService<ForwardingRulesReader>();
 forwardingRulesReader.Init();
 app.Run();
-
-// ensure request buffering middleware is available (optional if already present)
-app.Use(async (context, next) =>
-{
-    context.Request.EnableBuffering();
-    await next();
-});
 
 static void AddEnvironmentVariables(IList<string> existingArgsList, IDictionary<string, string> additionalEnvVars)
 {
