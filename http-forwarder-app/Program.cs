@@ -23,6 +23,7 @@ AddEnvironmentVariables(newArgs, new Dictionary<string, string> { { "VERSION", V
 
 var builder = WebApplication.CreateBuilder(newArgs.ToArray());
 builder.Logging.AddConsole();
+builder.Configuration.ValidateStartupConfiguration();
 
 builder.Services.AddControllers(options =>
 {
