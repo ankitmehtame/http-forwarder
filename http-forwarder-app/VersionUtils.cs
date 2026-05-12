@@ -10,7 +10,7 @@ public static class VersionUtils
 {
     private static readonly Lazy<SemVersion> prodVersion = new(() =>
     {
-        string versionFromAssembly = Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? string.Empty;
+        string versionFromAssembly = typeof(VersionUtils).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? string.Empty;
         if (!SemVersion.TryParse(versionFromAssembly.Trim(), SemVersionStyles.Any, out var semverAssembly))
         {
             return SemVersion.FromVersion(new Version());
@@ -38,6 +38,20 @@ public static class VersionUtils
 
     public static readonly string InfoVersion = !IsLocal ? prodVersion.Value.ToString() : localVersion.Value.ToString();
     public static readonly string AssemblyVersion = !IsLocal ? prodVersion.Value.WithoutPrereleaseOrMetadata().ToVersion().ToString(3) : localVersion.Value.WithoutPrereleaseOrMetadata().ToVersion().ToString(3);
+    public static readonly string BuildId = GetEnvironmentValue("APP_BUILD_ID", "local");
+    public static readonly string Commit = GetShortCommit(GetEnvironmentValue("APP_COMMIT", "unknown"));
+    public static readonly string DisplayVersion = $"Version: {InfoVersion}\nBuild: {BuildId}\nCommit: {Commit}";
+
+    private static string GetEnvironmentValue(string name, string fallback)
+    {
+        var value = Environment.GetEnvironmentVariable(name);
+        return string.IsNullOrWhiteSpace(value) ? fallback : value;
+    }
+
+    private static string GetShortCommit(string commit)
+    {
+        return commit.Length > 12 ? commit[..12] : commit;
+    }
 
     private record VersionFileVersion(string Version);
 }

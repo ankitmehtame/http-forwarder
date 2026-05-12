@@ -3,6 +3,7 @@ WORKDIR /app
 
 # Copy the central package management file first (for better layer caching)
 COPY Directory.Packages.props ./
+COPY Directory.Build.props ./
 
 # Copy solution and project files
 COPY *.sln ./
@@ -26,6 +27,10 @@ RUN dotnet publish http-forwarder-app/http-forwarder-app.csproj -c Release -o ou
 # Build runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
+ARG APP_BUILD_ID=local
+ARG APP_COMMIT=unknown
+ENV APP_BUILD_ID=${APP_BUILD_ID}
+ENV APP_COMMIT=${APP_COMMIT}
 COPY --from=build /app/out ./
 ENTRYPOINT ["dotnet", "http-forwarder-app.dll"]
 

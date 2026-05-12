@@ -45,7 +45,7 @@ builder.Services.AddSwaggerGen(c => c.SwaggerDoc("v1", new OpenApiInfo
 {
     Version = VersionUtils.AssemblyVersion,
     Title = "http forwarder app",
-    Description = "v" + VersionUtils.InfoVersion
+    Description = VersionUtils.DisplayVersion
 }));
 builder.Services.AddSingleton<IRestClient, RestClient>();
 builder.Services.AddSingleton<AppState, AppState>();
@@ -88,7 +88,7 @@ var logger = app.Services.GetRequiredService<ILogger<Program>>();
 logger.LogInformation("Environment is {environmentName}, location is {locationTag}, starting up at {time}",
      app.Environment.EnvironmentName, app.Configuration.GetLocationTag(), DateTimeOffset.Now.ToString("o"));
 
-logger.LogInformation("Info version is {InfoVersion}", VersionUtils.InfoVersion);
+logger.LogInformation("Info version is {InfoVersion}, build is {BuildId}, commit is {Commit}", VersionUtils.InfoVersion, VersionUtils.BuildId, VersionUtils.Commit);
 logger.LogDebug("TZ is {TZ}", TimeZoneInfo.Local.DisplayName);
 
 var forwardingRulesReader = app.Services.GetRequiredService<ForwardingRulesReader>();
