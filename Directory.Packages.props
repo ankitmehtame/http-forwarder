@@ -22,6 +22,7 @@
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.9.0" />
 
     <!-- Versioning utilities -->
+    <PackageVersion Include="Nerdbank.GitVersioning" Version="3.8.118" />
     <PackageVersion Include="Semver" Version="3.0.0" />
 
     <!-- Error handling -->
