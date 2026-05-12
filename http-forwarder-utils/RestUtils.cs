@@ -32,7 +32,11 @@ public static class RestUtils
 
     public static MediaTypeHeaderValue ToMediaTypeHeaderValue(this string? contentTypeHeaderValue)
     {
-        MediaTypeHeaderValue mediaTypeHeaderValue = string.IsNullOrWhiteSpace(contentTypeHeaderValue) ? new("application/json", Encoding.UTF8.HeaderName) : MediaTypeHeaderValue.Parse(contentTypeHeaderValue);
-        return mediaTypeHeaderValue;
+        if (!string.IsNullOrWhiteSpace(contentTypeHeaderValue) && MediaTypeHeaderValue.TryParse(contentTypeHeaderValue, out var mediaTypeHeaderValue))
+        {
+            return mediaTypeHeaderValue;
+        }
+
+        return new MediaTypeHeaderValue("application/json", Encoding.UTF8.HeaderName);
     }
 }

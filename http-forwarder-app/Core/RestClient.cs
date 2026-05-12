@@ -22,7 +22,7 @@ namespace http_forwarder_app.Core
         {
             var client = httpClientFactory.CreateClient(ignoreSslError ? Constants.HTTP_CLIENT_IGNORE_SSL_ERROR : eventName);
             AddHeaders(client, headers);
-            var contentType = SafeGetContentType(headers);
+            var contentType = SafeGetContentType(headers) ?? "application/json";
             var mediaTypeHeaderValue = contentType.ToMediaTypeHeaderValue();
             var finalContent = new StringContent(content ?? string.Empty, mediaTypeHeaderValue);
             logger.LogDebug("Calling POST {url} with body {body} and headers {headers}", targetUrl, content ?? string.Empty, configuration.CreatePrettyDictionary(headers));
@@ -43,7 +43,7 @@ namespace http_forwarder_app.Core
         {
             var client = httpClientFactory.CreateClient(ignoreSslError ? Constants.HTTP_CLIENT_IGNORE_SSL_ERROR : eventName);
             AddHeaders(client, headers);
-            var contentType = SafeGetContentType(headers);
+            var contentType = SafeGetContentType(headers) ?? "application/json";
             var mediaTypeHeaderValue = contentType.ToMediaTypeHeaderValue();
             var finalContent = new StringContent(content ?? string.Empty, mediaTypeHeaderValue);
             logger.LogDebug("Calling PUT {url} with body {body} and headers {headers}", targetUrl, content ?? string.Empty, configuration.CreatePrettyDictionary(headers));
