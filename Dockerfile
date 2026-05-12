@@ -6,7 +6,7 @@ COPY Directory.Packages.props ./
 COPY Directory.Build.props ./
 
 # Copy solution and project files
-COPY *.sln ./
+COPY *.slnx ./
 COPY http-forwarder-app/*.csproj ./http-forwarder-app/
 COPY http-forwarder-models/*.csproj ./http-forwarder-models/
 COPY http-forwarder-utils/*.csproj ./http-forwarder-utils/
@@ -16,11 +16,11 @@ COPY http-forwarder-acceptance-tests/*.csproj ./http-forwarder-acceptance-tests/
 COPY http-forwarder-app-function/*.csproj ./http-forwarder-app-function/
 
 # Restore packages
-RUN dotnet restore http-forwarder.sln
+RUN dotnet restore http-forwarder.slnx
 
 # Copy everything else and build
 COPY . .
-RUN dotnet build http-forwarder.sln -c Release --no-restore
+RUN dotnet build http-forwarder.slnx -c Release --no-restore
 
 RUN dotnet publish http-forwarder-app/http-forwarder-app.csproj -c Release -o out --no-build
 

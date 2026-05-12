@@ -1,0 +1,14 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="http-forwarder-acceptance-tests/http-forwarder-acceptance-tests.csproj" />
+  <Project Path="http-forwarder-app-function/http-forwarder-app-function.csproj" />
+  <Project Path="http-forwarder-app/http-forwarder-app.csproj" />
+  <Project Path="http-forwarder-cloud/http-forwarder-cloud.csproj" />
+  <Project Path="http-forwarder-models/http-forwarder-models.csproj" />
+  <Project Path="http-forwarder-unit-tests/http-forwarder-unit-tests.csproj" />
+  <Project Path="http-forwarder-utils/http-forwarder-utils.csproj" />
+</Solution>
