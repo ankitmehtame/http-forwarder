@@ -83,7 +83,7 @@ public class Function : IHttpFunction
         }
         if (!(_allowedEvents.Contains("*") ||
             _allowedEvents.Contains(eventName) ||
-            _allowedEvents.Any(allowedEventName => SafeRegex.IsMatch(eventName, allowedEventName, RegexOptions.IgnoreCase, _regexMatchTimeout))))
+            _allowedEvents.Any(allowedEventName => SafeRegex.IsMatch(eventName, allowedEventName, RegexOptions.IgnoreCase, _regexMatchTimeout, _logger))))
         {
             context.Response.StatusCode = StatusCodes.Status406NotAcceptable;
             await context.Response.WriteAsync($"Not allowed event {eventName}");

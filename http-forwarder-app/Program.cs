@@ -39,7 +39,7 @@ builder.Services.AddHttpClient(Constants.HTTP_CLIENT_IGNORE_SSL_ERROR).Configure
         (httpRequestMessage, cert, cetChain, policyErrors) =>
         {
             return true;
-    }
+        }
 });
 builder.Services.AddSwaggerGen(c => c.SwaggerDoc("v1", new OpenApiInfo
 {
