@@ -1,5 +1,3 @@
-using System;
-
 namespace http_forwarder_app.Extensions;
 
 public static class RetryExtensions

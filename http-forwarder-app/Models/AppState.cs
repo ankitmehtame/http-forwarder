@@ -1,5 +1,3 @@
-using System.Threading;
-
 namespace http_forwarder_app.Models
 {
     public class AppState

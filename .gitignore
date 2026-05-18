@@ -233,3 +233,8 @@ _Pvt_Extensions
 
 # FAKE - F# Make
 .fake/
+
+# Generated analysis artifacts
+ANALYSIS-INDEX.md
+HTTP-FORWARDER-ANALYSIS.md
+HTTP-FORWARDER-SUMMARY.txt

@@ -3,10 +3,6 @@ using http_forwarder_app.Models;
 using http_forwarder_app.Utils;
 using Microsoft.Extensions.Logging;
 using OneOf;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using System;
-using System.Collections.Generic;
 
 namespace http_forwarder_app.Services;
 
