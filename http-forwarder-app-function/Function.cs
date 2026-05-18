@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using Google.Apis.Util;
 using Google.Cloud.Functions.Framework;
@@ -21,7 +22,11 @@ public class Function : IHttpFunction
 
     private readonly HashSet<string> _allowedEvents;
     private readonly TimeSpan _regexMatchTimeout;
+    private readonly bool _rateLimitingEnabled;
+    private readonly int _rateLimitPerWindow;
+    private readonly TimeSpan _rateLimitWindow;
     private static long InstantiationCounter = 0;
+    private static readonly ConcurrentDictionary<string, RateLimitWindow> RateLimitWindows = new();
     private readonly IPublishingService _publishingService;
 
     public Function(ILogger<Function> logger, IConfiguration configuration, IPublishingService publishingService)
@@ -48,6 +53,9 @@ public class Function : IHttpFunction
                                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             _regexMatchTimeout = configuration.GetRegexMatchTimeout();
+            _rateLimitingEnabled = configuration.IsRateLimitingEnabled();
+            _rateLimitPerWindow = configuration.GetRateLimitPerWindow();
+            _rateLimitWindow = configuration.GetRateLimitWindow();
 
             _projectId = configuration.GetCloudProjectId() ?? string.Empty;
             _topicId = configuration.GetGenericPubSubTopicId() ?? string.Empty;
@@ -61,6 +69,14 @@ public class Function : IHttpFunction
 
     public async Task HandleAsync(HttpContext context)
     {
+        if (!TryConsumeRateLimit(context))
+        {
+            context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            context.Response.Headers.RetryAfter = ((int)_rateLimitWindow.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            await context.Response.WriteAsync("Rate limit exceeded");
+            return;
+        }
+
         var requestMethod = context.Request.Method;
         var requestPath = context.Request.Path.Value;
         _logger.LogInformation("Received HTTP {requestMethod} request at {requestPath}", requestMethod, requestPath);
@@ -139,5 +155,52 @@ public class Function : IHttpFunction
             return eventName;
         }
         return string.Empty;
+    }
+
+    private bool TryConsumeRateLimit(HttpContext context)
+    {
+        if (!_rateLimitingEnabled) return true;
+
+        var clientIp = GetClientIp(context);
+        var now = DateTimeOffset.UtcNow;
+        var window = RateLimitWindows.GetOrAdd(clientIp, _ => new RateLimitWindow(now, _rateLimitWindow));
+        lock (window)
+        {
+            if (now >= window.ExpiresAt)
+            {
+                window.Reset(now, _rateLimitWindow);
+            }
+
+            if (window.Count >= _rateLimitPerWindow)
+            {
+                return false;
+            }
+
+            window.Count++;
+            return true;
+        }
+    }
+
+    private static string GetClientIp(HttpContext context)
+    {
+        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(forwardedFor))
+        {
+            return forwardedFor.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "unknown";
+        }
+
+        return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    }
+
+    private sealed class RateLimitWindow(DateTimeOffset startsAt, TimeSpan duration)
+    {
+        public DateTimeOffset ExpiresAt { get; private set; } = startsAt.Add(duration);
+        public int Count { get; set; }
+
+        public void Reset(DateTimeOffset startsAt, TimeSpan duration)
+        {
+            ExpiresAt = startsAt.Add(duration);
+            Count = 0;
+        }
     }
 }

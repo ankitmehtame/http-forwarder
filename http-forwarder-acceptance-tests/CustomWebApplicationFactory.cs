@@ -12,12 +12,21 @@ namespace http_forwarder_acceptance_tests;
 
 public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProgram> where TProgram : class
 {
+    private IDictionary<string, string?> _settings = new Dictionary<string, string?>();
+
+    public CustomWebApplicationFactory<TProgram> WithSettings(IDictionary<string, string?> settings)
+    {
+        _settings = settings;
+        return this;
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureAppConfiguration(builder =>
         {
             builder.SetBasePath(Directory.GetCurrentDirectory());
             builder.AddJsonFile("appsettings.test.json");
+            builder.AddInMemoryCollection(_settings);
         });
 
         builder.UseEnvironment("Test");

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Threading.RateLimiting;
 using http_forwarder_app;
 using http_forwarder_app.Cloud;
 using http_forwarder_app.Core;
@@ -48,6 +49,33 @@ builder.Services.AddSwaggerGen(c => c.SwaggerDoc("v1", new OpenApiInfo
     Title = "http forwarder app",
     Description = VersionUtils.DisplayVersion
 }));
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.Headers.RetryAfter = ((int)builder.Configuration.GetRateLimitWindow().TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        await context.HttpContext.Response.WriteAsync("Rate limit exceeded", cancellationToken);
+    };
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+    {
+        if (!builder.Configuration.IsRateLimitingEnabled())
+        {
+            return RateLimitPartition.GetNoLimiter("disabled");
+        }
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            GetClientIp(context),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetRateLimitPerWindow(),
+                Window = builder.Configuration.GetRateLimitWindow(),
+                AutoReplenishment = true,
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            });
+    });
+});
 builder.Services.AddSingleton<IRestClient, RestClient>();
 builder.Services.AddSingleton<AppState, AppState>();
 builder.Services.AddSingleton<ForwardingRulesReader>();
@@ -77,6 +105,8 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseRouting();
+
+app.UseRateLimiter();
 
 app.Use(async (context, next) =>
 {
@@ -110,6 +140,17 @@ static void AddEnvironmentVariables(IList<string> existingArgsList, IDictionary<
         existingArgsList.Add("--" + pair.Key);
         existingArgsList.Add(pair.Value);
     }
+}
+
+static string GetClientIp(HttpContext context)
+{
+    var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+    if (!string.IsNullOrWhiteSpace(forwardedFor))
+    {
+        return forwardedFor.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "unknown";
+    }
+
+    return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 }
 
 public partial class Program { }
