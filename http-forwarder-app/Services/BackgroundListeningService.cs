@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Google.Cloud.PubSub.V1;
 using http_forwarder_app.Core;
 using http_forwarder_app.Models;

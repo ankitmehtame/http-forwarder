@@ -1,4 +1,3 @@
-using System.Threading;
 using http_forwarder_app.Models;
 using Microsoft.Extensions.Logging;
 

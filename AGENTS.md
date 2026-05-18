@@ -33,7 +33,7 @@
 ## Style
 - No repo `.editorconfig`, ruleset, or StyleCop config is present; use the existing C# style in touched files.
 - `dotnet format http-forwarder.slnx --verify-no-changes --verbosity minimal` is the available formatting check when style risk is high.
-- Nullable reference types are enabled across projects; most projects also enable implicit usings, but `http-forwarder-app` does not.
+- Nullable reference types and implicit usings are enabled across projects.
 
 ## CI And Containers
 - GitHub Actions uses .NET SDK `10.0`, runs Release build/tests, then builds multi-arch GHCR images with Buildx.

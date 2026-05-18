@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
 using System.Threading.RateLimiting;
 using http_forwarder_app;
 using http_forwarder_app.Cloud;
@@ -9,14 +5,7 @@ using http_forwarder_app.Core;
 using http_forwarder_app.Models;
 using http_forwarder_app.Models.Services;
 using http_forwarder_app.Services;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Internal;
-using Microsoft.Extensions.Logging;
-using Microsoft.OpenApi;
 using Microsoft.OpenApi.Models;
 
 var newArgs = args.ToList();
