@@ -1,9 +1,14 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /app
+ARG VERSION=0.0.0
+ARG ASSEMBLY_VERSION=0.0.0
+ARG FILE_VERSION=0.0.0
+ARG INFORMATIONAL_VERSION=0.0.0-local
 
 # Copy the central package management file first (for better layer caching)
 COPY Directory.Packages.props ./
 COPY Directory.Build.props ./
+COPY version.json ./
 
 # Copy solution and project files
 COPY *.slnx ./
@@ -20,7 +25,16 @@ RUN dotnet restore http-forwarder.slnx
 
 # Copy everything else and build
 COPY . .
-RUN dotnet build http-forwarder.slnx -c Release --no-restore
+RUN dotnet build http-forwarder.slnx -c Release --no-restore \
+    /p:GenerateAssemblyVersionInfo=false \
+    /p:GenerateAssemblyVersionAttribute=true \
+    /p:GenerateAssemblyFileVersionAttribute=true \
+    /p:GenerateAssemblyInformationalVersionAttribute=true \
+    /p:IncludeSourceRevisionInInformationalVersion=false \
+    /p:Version=${VERSION} \
+    /p:AssemblyVersion=${ASSEMBLY_VERSION} \
+    /p:FileVersion=${FILE_VERSION} \
+    /p:InformationalVersion=${INFORMATIONAL_VERSION}
 
 RUN dotnet publish http-forwarder-app/http-forwarder-app.csproj -c Release -o out --no-build
 
