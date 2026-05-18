@@ -16,6 +16,8 @@ public static class ConfigurationExtensions
 
         ValidatePositiveNumber(configuration, Constants.OUTBOUND_HTTP_TIMEOUT_SECONDS, errors);
         ValidatePositiveNumber(configuration, Constants.REGEX_MATCH_TIMEOUT_MILLISECONDS, errors);
+        ValidatePositiveInteger(configuration, Constants.RATE_LIMIT_PER_WINDOW, errors);
+        ValidatePositiveNumber(configuration, Constants.RATE_LIMIT_WINDOW_SECONDS, errors);
 
         if (configuration.IsPublisherEnabled())
         {
@@ -119,6 +121,26 @@ public static class ConfigurationExtensions
         return configuration.GetValue<bool>(Constants.RETRY_BACKGROUND_MONITORING_ENABLED, true);
     }
 
+    public static bool IsRateLimitingEnabled(this IConfiguration configuration)
+    {
+        return configuration.GetValue<bool>(Constants.RATE_LIMITING_ENABLED, true);
+    }
+
+    public static int GetRateLimitPerWindow(this IConfiguration configuration)
+    {
+        var value = configuration.GetValue<int?>(Constants.RATE_LIMIT_PER_WINDOW);
+        return value is > 0 ? value.Value : Constants.RateLimitPerWindowDefault;
+    }
+
+    public static TimeSpan GetRateLimitWindow(this IConfiguration configuration)
+    {
+        return GetPositiveTimeSpan(
+            configuration,
+            Constants.RATE_LIMIT_WINDOW_SECONDS,
+            Constants.RateLimitWindowDefault,
+            TimeSpan.FromSeconds);
+    }
+
     public static string GetMaskedHeadersValue(this IConfiguration configuration)
     {
         return (configuration.GetValue<string?>(Constants.MASKED_HEADERS, string.Empty) ?? string.Empty).Trim();
@@ -159,6 +181,20 @@ public static class ConfigurationExtensions
         if (!double.TryParse(configuredValue, out var value) || value <= 0)
         {
             errors.Add($"{key} must be a positive number when configured");
+        }
+    }
+
+    private static void ValidatePositiveInteger(IConfiguration configuration, string key, IList<string> errors)
+    {
+        var configuredValue = configuration.GetValue<string?>(key);
+        if (string.IsNullOrWhiteSpace(configuredValue))
+        {
+            return;
+        }
+
+        if (!int.TryParse(configuredValue, out var value) || value <= 0)
+        {
+            errors.Add($"{key} must be a positive integer when configured");
         }
     }
 

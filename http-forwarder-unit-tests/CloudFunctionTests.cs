@@ -99,6 +99,36 @@ public class FunctionUnitTests
         setupData.MockPublishingService.Verify(p => p.Publish(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<ForwardingRequest>()), Times.Never());
     }
 
+    [Fact]
+    public async Task HandleAsync_WhenRateLimitExceeded_ReturnsTooManyRequests()
+    {
+        // Arrange
+        var inMemorySettings = new Dictionary<string, string?> {
+            {"ALLOWED_EVENTS", "user-registered"},
+            {"GOOGLE_CLOUD_PROJECT_ID", projectId},
+            {"PUBSUB_TOPIC_ID", topicId},
+            {"RATE_LIMITING_ENABLED", "true"},
+            {"RATE_LIMIT_PER_WINDOW", "1"},
+            {"RATE_LIMIT_WINDOW_SECONDS", "60"}
+        };
+        const string requestMethod = "POST";
+        const string clientIp = "198.51.100.77";
+        var firstSetupData = Setup(requestMethod: requestMethod, inMemorySettings: inMemorySettings, clientIp: clientIp);
+        var secondSetupData = Setup(requestMethod: requestMethod, inMemorySettings: inMemorySettings, clientIp: clientIp);
+
+        var function = new http_forwarder_app.Functions.Function(firstSetupData.MockLogger.Object, firstSetupData.Configuration, firstSetupData.MockPublishingService.Object);
+
+        // Act
+        await function.HandleAsync(firstSetupData.HttpContext);
+        await function.HandleAsync(secondSetupData.HttpContext);
+
+        // Assert
+        firstSetupData.RespFeature.StatusCode.ShouldBe((int)HttpStatusCode.OK);
+        secondSetupData.RespFeature.StatusCode.ShouldBe((int)HttpStatusCode.TooManyRequests);
+        secondSetupData.HttpContext.Response.Headers.RetryAfter.ToString().ShouldBe("60");
+        firstSetupData.MockPublishingService.Verify(x => x.Publish(projectId, topicId, It.IsAny<ForwardingRequest>()), Times.Once);
+    }
+
     [Theory]
     [InlineData("GET")]
     [InlineData("DELETE")]
@@ -152,7 +182,7 @@ public class FunctionUnitTests
         (req2 == req1).ShouldBeTrue();
     }
 
-    private static SetupData Setup(string requestMethod, IDictionary<string, string?> inMemorySettings)
+    private static SetupData Setup(string requestMethod, IDictionary<string, string?> inMemorySettings, string? clientIp = null)
     {
         var mockLogger = new Mock<ILogger<http_forwarder_app.Functions.Function>>();
         var mockPublishingService = new Mock<IPublishingService>();
@@ -161,6 +191,10 @@ public class FunctionUnitTests
         var content = new { Name = "Jane Doe", Age = 40, City = "London" };
         var jsonContent = JsonUtils.Serialize(content, false);
         var headers = new Dictionary<string, string> { { "Content-Type", "application/json" }, { "X-Test", "true" } };
+        if (!string.IsNullOrWhiteSpace(clientIp))
+        {
+            headers["X-Forwarded-For"] = clientIp;
+        }
         var requestBodyStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(jsonContent));
 
         IConfiguration configuration = new ConfigurationBuilder()

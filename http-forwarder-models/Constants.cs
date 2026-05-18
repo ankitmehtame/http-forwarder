@@ -1,4 +1,4 @@
-﻿namespace http_forwarder_app;
+namespace http_forwarder_app;
 
 public static class Constants
 {
@@ -34,10 +34,17 @@ public static class Constants
 
     public const string REGEX_MATCH_TIMEOUT_MILLISECONDS = "REGEX_MATCH_TIMEOUT_MILLISECONDS";
 
+    public const string RATE_LIMITING_ENABLED = "RATE_LIMITING_ENABLED";
+
+    public const string RATE_LIMIT_PER_WINDOW = "RATE_LIMIT_PER_WINDOW";
+
+    public const string RATE_LIMIT_WINDOW_SECONDS = "RATE_LIMIT_WINDOW_SECONDS";
 
     public static readonly TimeSpan RetryIntervalMin = TimeSpan.FromSeconds(30);
     public static readonly TimeSpan RetryIntervalMax = TimeSpan.FromHours(1);
     public static readonly TimeSpan RetryExpiry = TimeSpan.FromHours(24);
     public static readonly TimeSpan OutboundHttpTimeoutDefault = TimeSpan.FromSeconds(100);
     public static readonly TimeSpan RegexMatchTimeoutDefault = TimeSpan.FromMilliseconds(100);
+    public const int RateLimitPerWindowDefault = 60;
+    public static readonly TimeSpan RateLimitWindowDefault = TimeSpan.FromSeconds(60);
 }
