@@ -11,6 +11,7 @@ http-forwarder is a small HTTP proxy/forwarder intended to accept incoming HTTP 
 - Preserves request method, path, headers and body by default, with options to add or override headers per rule.
 - Exposes API endpoints for forwarding (`/forward/{eventName}`) and a ping endpoint (`/api/ping`) for liveness checks.
 - Supports remote rule publishing to Google Cloud Pub/sub for multi-instance setups.
+- Applies per-client-IP rate limiting by default to protect forwarding endpoints from bursts.
 - Runs as a standalone binary or inside a container.
 - Includes Swagger UI at the root URL for API documentation.
 
@@ -21,7 +22,7 @@ http-forwarder is a small HTTP proxy/forwarder intended to accept incoming HTTP 
 - Rules can be tagged with location tags (e.g., "home", "cloud") so only matching instances process specific requests.
 - Requests that match rules tagged for other locations can be published to Google Cloud Pub/Sub for remote processing.
 - Failed requests (HTTP 5xx) with retry enabled are stored and retried automatically with exponential backoff.
-- Basic logging and timeout handling are applied to avoid hanging requests.
+- Basic logging, timeout handling, and rate limiting are applied to avoid hanging or excessive requests.
 - Swagger/OpenAPI documentation is automatically generated and available at the root URL.
 
 ## Build (Docker)
@@ -49,6 +50,11 @@ The application is configured through environment variables. Most routing is don
 - `STORAGE_DIR_PATH` — Path for temporary storage of failed requests (default: `storage`).
 - `RETRY_POLICY_MAX_CONCURRENCY` — Max concurrent retry attempts (default: `4`)
 - `RETRY_BACKGROUND_MONITORING_ENABLED` — Enable retry monitoring (default: `true`).
+- `RATE_LIMITING_ENABLED` — Enable per-client-IP rate limiting (default: `true`).
+- `RATE_LIMIT_PER_WINDOW` — Number of requests allowed for each client IP in one window (default: `60`).
+- `RATE_LIMIT_WINDOW_SECONDS` — Rate limit window size in seconds (default: `60`).
+
+Rate limiting uses the first IP in `X-Forwarded-For` when present, then falls back to the connection remote IP. Requests over the configured limit return `429 Too Many Requests` with a `Retry-After` header. This is not an allowlist or authentication mechanism; it only limits request volume.
 
 ## Docker volumes configuration
 ```yaml
