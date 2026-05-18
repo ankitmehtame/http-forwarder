@@ -89,5 +89,9 @@ jobs:
         build-args: |
           APP_BUILD_ID=${{ github.run_number }}
           APP_COMMIT=${{ github.sha }}
+          VERSION=${{ steps.nbgv.outputs.SemVer2 }}
+          ASSEMBLY_VERSION=${{ steps.nbgv.outputs.AssemblyVersion }}
+          FILE_VERSION=${{ steps.nbgv.outputs.AssemblyFileVersion }}
+          INFORMATIONAL_VERSION=${{ steps.nbgv.outputs.AssemblyInformationalVersion }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
