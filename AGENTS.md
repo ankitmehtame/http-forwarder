@@ -11,7 +11,7 @@
 
 ## Project Shape
 - Main ASP.NET Core app entrypoint is `http-forwarder-app/Program.cs`; forwarding routes are in `http-forwarder-app/Controllers/ForwardingController.cs` under `/forward/{eventName}` and `/api/forward/{eventName}`.
-- Cloud Function entrypoint is `http-forwarder-app-function/Function.cs`; it only accepts `POST`/`PUT` and filters events with `ALLOWED_EVENTS`.
+- Cloud Function entrypoint is `http-forwarder-app-function/Function.cs`; it only accepts `POST`/`PUT`, requires an API key (`X-API-Key` header or `apiKey` query) from `ALLOWED_API_KEYS`, and filters events with `ALLOWED_EVENTS`.
 - Shared DTOs/rules live in `http-forwarder-models`; config/path helpers live in `http-forwarder-utils`; Pub/Sub publishing lives in `http-forwarder-cloud`.
 - Package versions are centrally managed in `Directory.Packages.props`; keep versions out of individual `.csproj` `PackageReference`s.
 - Version stamping uses Nerdbank.GitVersioning from `Directory.Build.props` and `version.json`; Docker builds receive NBGV values from CI build args.
