@@ -128,7 +128,16 @@ public class FailedRequestStorage : IFailedRequestStorage, IDisposable
 
     public void ScheduleCleanup(bool force)
     {
-        var acquiredLock = Monitor.TryEnter(_archiveLock);
+        var acquiredLock = false;
+        if (force)
+        {
+            Monitor.Enter(_archiveLock);
+            acquiredLock = true;
+        }
+        else
+        {
+            acquiredLock = Monitor.TryEnter(_archiveLock);
+        }
         if (!acquiredLock) return;
         try
         {
