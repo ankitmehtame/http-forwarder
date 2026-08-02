@@ -23,17 +23,34 @@ public static class RestUtils
         "Host"
     };
 
+    private static readonly HashSet<string> EmptyAdditionalIgnoredHeaders = new(StringComparer.OrdinalIgnoreCase);
+
     public static ImmutableSortedDictionary<string, string> GetHeaders(
         this IHeaderDictionary? requestHeaders,
         IEnumerable<string>? additionalIgnoredHeaders = null)
     {
+        var additionalIgnored = EmptyAdditionalIgnoredHeaders;
+        if (additionalIgnoredHeaders is not null)
+        {
+            var additionalIgnoredSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var header in additionalIgnoredHeaders)
+            {
+                if (!string.IsNullOrWhiteSpace(header))
+                {
+                    additionalIgnoredSet.Add(header);
+                }
+            }
+
+            if (additionalIgnoredSet.Count > 0)
+            {
+                additionalIgnored = additionalIgnoredSet;
+            }
+        }
+
         Dictionary<string, string> requiredHeaders = [];
         foreach (var requiredHeader in requestHeaders ?? Enumerable.Empty<KeyValuePair<string, StringValues>>())
         {
-            if (IgnoredHeaders.Contains(requiredHeader.Key)
-                || (additionalIgnoredHeaders?.Any(header =>
-                    !string.IsNullOrWhiteSpace(header)
-                    && string.Equals(header, requiredHeader.Key, StringComparison.OrdinalIgnoreCase)) ?? false))
+            if (IgnoredHeaders.Contains(requiredHeader.Key) || additionalIgnored.Contains(requiredHeader.Key))
             {
                 continue;
             }
