@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 using Google.Apis.Util;
 using Google.Cloud.Functions.Framework;
@@ -144,7 +143,7 @@ public class Function : IHttpFunction
         }
 
         // Strip API key header so it is not republished to Pub/Sub
-        var requestHeaders = StripApiKeyHeader(context.Request.Headers.GetHeaders());
+        var requestHeaders = context.Request.Headers.GetHeaders(additionalIgnoredHeaders: [ApiKeyHeaderName]);
 
         ForwardingRequest fwdRequest = new(
             Method: requestMethod,
@@ -207,13 +206,6 @@ public class Function : IHttpFunction
 
         return (hasHeaderKey && _allowedApiKeys.Contains(headerApiKey!))
             || (hasQueryKey && _allowedApiKeys.Contains(queryApiKey!));
-    }
-
-    private static ImmutableSortedDictionary<string, string> StripApiKeyHeader(ImmutableSortedDictionary<string, string> headers)
-    {
-        return headers
-            .Where(kvp => !string.Equals(kvp.Key, ApiKeyHeaderName, StringComparison.OrdinalIgnoreCase))
-            .ToImmutableSortedDictionary();
     }
 
     private bool TryConsumeRateLimit(HttpContext context)

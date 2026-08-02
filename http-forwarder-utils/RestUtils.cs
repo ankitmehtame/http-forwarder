@@ -17,14 +17,34 @@ public static class RestUtils
     public static bool IsServerError(this HttpStatusCode statusCode) =>
             (int)statusCode >= 500 && (int)statusCode <= 599;
 
-    private static readonly HashSet<string> IgnoredHeaders = ["Content-Length", "Host"];
-
-    public static ImmutableSortedDictionary<string, string> GetHeaders(this IHeaderDictionary? requestHeaders)
+    private static readonly HashSet<string> IgnoredHeaders = new(StringComparer.OrdinalIgnoreCase)
     {
+        "Content-Length",
+        "Host"
+    };
+
+    public static ImmutableSortedDictionary<string, string> GetHeaders(
+        this IHeaderDictionary? requestHeaders,
+        IEnumerable<string>? additionalIgnoredHeaders = null)
+    {
+        HashSet<string>? ignoredHeaders = null;
+        if (additionalIgnoredHeaders is not null)
+        {
+            ignoredHeaders = new HashSet<string>(IgnoredHeaders, StringComparer.OrdinalIgnoreCase);
+            foreach (var header in additionalIgnoredHeaders)
+            {
+                if (!string.IsNullOrWhiteSpace(header))
+                {
+                    ignoredHeaders.Add(header);
+                }
+            }
+        }
+
+        var headersToIgnore = ignoredHeaders ?? IgnoredHeaders;
         Dictionary<string, string> requiredHeaders = [];
         foreach (var requiredHeader in requestHeaders ?? Enumerable.Empty<KeyValuePair<string, StringValues>>())
         {
-            if (IgnoredHeaders.Contains(requiredHeader.Key)) continue;
+            if (headersToIgnore.Contains(requiredHeader.Key)) continue;
             requiredHeaders.Add(requiredHeader.Key, string.Join("\n", requiredHeader.Value.ToArray()));
         }
         return requiredHeaders.ToImmutableSortedDictionary();
