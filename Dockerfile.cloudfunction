@@ -22,5 +22,9 @@ WORKDIR /app
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "http-forwarder-app-function.dll"]
 
+# Functions Framework binds via PORT + UseKestrel/Listen. Clear the aspnet
+# image hosting URL defaults so Kestrel does not warn about overriding them.
 ENV PORT=8080
+ENV ASPNETCORE_URLS=
+ENV ASPNETCORE_HTTP_PORTS=
 EXPOSE 8080
