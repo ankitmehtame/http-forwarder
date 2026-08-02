@@ -53,6 +53,7 @@ The application is configured through environment variables. Most routing is don
 - `RATE_LIMITING_ENABLED` — Enable per-client-IP rate limiting (default: `true`).
 - `RATE_LIMIT_PER_WINDOW` — Number of requests allowed for each client IP in one window (default: `60`).
 - `RATE_LIMIT_WINDOW_SECONDS` — Rate limit window size in seconds (default: `60`).
+- `ALLOWED_API_KEYS` — **Required for the Cloud Function**. Comma-separated list of accepted API keys. Callers must send a matching key via the `X-API-Key` header or `apiKey` query parameter; otherwise the function returns `401 Unauthorized`. The API key is not republished to Pub/Sub.
 
 Rate limiting uses the first IP in `X-Forwarded-For` when present, then falls back to the connection remote IP. Requests over the configured limit return `429 Too Many Requests` with a `Retry-After` header. This is not an allowlist or authentication mechanism; it only limits request volume.
 

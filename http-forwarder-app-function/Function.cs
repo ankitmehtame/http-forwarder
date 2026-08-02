@@ -21,6 +21,7 @@ public class Function : IHttpFunction
     private readonly string _topicId;
 
     private readonly HashSet<string> _allowedEvents;
+    private readonly HashSet<string> _allowedApiKeys;
     private readonly TimeSpan _regexMatchTimeout;
     private readonly bool _rateLimitingEnabled;
     private readonly int _rateLimitPerWindow;
@@ -28,6 +29,8 @@ public class Function : IHttpFunction
     private static long InstantiationCounter = 0;
     private static readonly ConcurrentDictionary<string, RateLimitWindow> RateLimitWindows = new();
     private readonly IPublishingService _publishingService;
+    private const string ApiKeyHeaderName = "X-API-Key";
+    private const string ApiKeyQueryParameterName = "apiKey";
 
     public Function(ILogger<Function> logger, IConfiguration configuration, IPublishingService publishingService)
     {
@@ -52,6 +55,26 @@ public class Function : IHttpFunction
             _allowedEvents = allowedEvents
                                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var allowedApiKeys = configuration.GetAllowedApiKeys() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(allowedApiKeys))
+            {
+                _logger.LogError("Environment variable '{AllowedApiKeysEnvVar}' is not set.", Constants.ALLOWED_API_KEYS);
+                throw new InvalidOperationException($"Environment variable '{Constants.ALLOWED_API_KEYS}' is not set.");
+            }
+            _allowedApiKeys = allowedApiKeys
+                                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                                .ToHashSet(StringComparer.Ordinal);
+            if (_allowedApiKeys.Count == 0)
+            {
+                _logger.LogError("Environment variable '{AllowedApiKeysEnvVar}' does not contain any API keys.", Constants.ALLOWED_API_KEYS);
+                throw new InvalidOperationException($"Environment variable '{Constants.ALLOWED_API_KEYS}' does not contain any API keys.");
+            }
+            if (isFirstTime)
+            {
+                _logger.LogInformation("Configured {allowedApiKeyCount} API key(s)", _allowedApiKeys.Count);
+            }
+
             _regexMatchTimeout = configuration.GetRegexMatchTimeout();
             _rateLimitingEnabled = configuration.IsRateLimitingEnabled();
             _rateLimitPerWindow = configuration.GetRateLimitPerWindow();
@@ -89,6 +112,13 @@ public class Function : IHttpFunction
             return;
         }
 
+        if (!TryAuthorizeApiKey(context))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsync("Unauthorized");
+            return;
+        }
+
         var eventName = GetEventName(requestPath);
         _logger.LogInformation("Event is {eventName}", eventName);
         if (string.IsNullOrEmpty(eventName))
@@ -112,7 +142,8 @@ public class Function : IHttpFunction
             requestBody = ((await reader.ReadToEndAsync()) ?? string.Empty).Trim();
         }
 
-        var requestHeaders = context.Request.Headers.GetHeaders();
+        // Strip API key header so it is not republished to Pub/Sub
+        var requestHeaders = context.Request.Headers.GetHeaders(additionalIgnoredHeaders: [ApiKeyHeaderName]);
 
         ForwardingRequest fwdRequest = new(
             Method: requestMethod,
@@ -155,6 +186,26 @@ public class Function : IHttpFunction
             return eventName;
         }
         return string.Empty;
+    }
+
+    private bool TryAuthorizeApiKey(HttpContext context)
+    {
+        var headerApiKey = context.Request.Headers[ApiKeyHeaderName].FirstOrDefault();
+        var queryApiKey = context.Request.Query[ApiKeyQueryParameterName].FirstOrDefault();
+
+        var hasHeaderKey = !string.IsNullOrEmpty(headerApiKey);
+        var hasQueryKey = !string.IsNullOrEmpty(queryApiKey);
+
+        if (hasHeaderKey && hasQueryKey)
+        {
+            _logger.LogWarning(
+                "Multiple API keys were provided via both {ApiKeyHeaderName} header and {ApiKeyQueryParameterName} query parameter; this is likely a mistake",
+                ApiKeyHeaderName,
+                ApiKeyQueryParameterName);
+        }
+
+        return (hasHeaderKey && _allowedApiKeys.Contains(headerApiKey!))
+            || (hasQueryKey && _allowedApiKeys.Contains(queryApiKey!));
     }
 
     private bool TryConsumeRateLimit(HttpContext context)

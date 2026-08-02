@@ -22,6 +22,8 @@ public static class Constants
 
     public const string GENERIC_TOPIC_ALLOWED_EVENTS = "ALLOWED_EVENTS";
 
+    public const string ALLOWED_API_KEYS = "ALLOWED_API_KEYS";
+
     public const string STORAGE_DIR_PATH = "STORAGE_DIR_PATH";
 
     public const string RETRY_POLICY_MAX_CONCURRENCY = "RETRY_POLICY_MAX_CONCURRENCY";
