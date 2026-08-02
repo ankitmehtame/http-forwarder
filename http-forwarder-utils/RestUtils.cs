@@ -27,24 +27,17 @@ public static class RestUtils
         this IHeaderDictionary? requestHeaders,
         IEnumerable<string>? additionalIgnoredHeaders = null)
     {
-        HashSet<string>? ignoredHeaders = null;
-        if (additionalIgnoredHeaders is not null)
-        {
-            ignoredHeaders = new HashSet<string>(IgnoredHeaders, StringComparer.OrdinalIgnoreCase);
-            foreach (var header in additionalIgnoredHeaders)
-            {
-                if (!string.IsNullOrWhiteSpace(header))
-                {
-                    ignoredHeaders.Add(header);
-                }
-            }
-        }
-
-        var headersToIgnore = ignoredHeaders ?? IgnoredHeaders;
         Dictionary<string, string> requiredHeaders = [];
         foreach (var requiredHeader in requestHeaders ?? Enumerable.Empty<KeyValuePair<string, StringValues>>())
         {
-            if (headersToIgnore.Contains(requiredHeader.Key)) continue;
+            if (IgnoredHeaders.Contains(requiredHeader.Key)
+                || (additionalIgnoredHeaders?.Any(header =>
+                    !string.IsNullOrWhiteSpace(header)
+                    && string.Equals(header, requiredHeader.Key, StringComparison.OrdinalIgnoreCase)) ?? false))
+            {
+                continue;
+            }
+
             requiredHeaders.Add(requiredHeader.Key, string.Join("\n", requiredHeader.Value.ToArray()));
         }
         return requiredHeaders.ToImmutableSortedDictionary();
