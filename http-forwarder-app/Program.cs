@@ -86,11 +86,13 @@ if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();
 }
 
+app.UseStaticFiles();
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Forwarder");
     c.RoutePrefix = string.Empty;
+    c.InjectStylesheet("/swagger-custom.css");
 });
 
 app.UseRouting();
