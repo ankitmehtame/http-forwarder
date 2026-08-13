@@ -3,3 +3,7 @@
   background-size: 32px 32px;
   padding-left: 40px;
 }
+
+.swagger-ui .topbar .link img {
+  display: none;
+}
