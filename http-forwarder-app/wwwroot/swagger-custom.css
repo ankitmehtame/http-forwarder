@@ -1,0 +1,5 @@
+.swagger-ui .topbar .link {
+  background: url("/swagger-http.svg") no-repeat left center;
+  background-size: 32px 32px;
+  padding-left: 40px;
+}
