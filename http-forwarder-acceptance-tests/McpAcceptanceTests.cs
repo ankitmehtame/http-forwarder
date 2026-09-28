@@ -47,7 +47,8 @@ public class McpAcceptanceTests
 
         var result = await client.CallToolAsync("forward_event", new Dictionary<string, object?>
         {
-            ["eventName"] = "ping-test", ["method"] = "GET"
+            ["eventName"] = "ping-test",
+            ["method"] = "GET"
         });
         result.IsError.ShouldBe(false);
         result.StructuredContent!.Value.GetProperty("status").GetInt32().ShouldBe(200);
@@ -55,7 +56,9 @@ public class McpAcceptanceTests
 
         var missing = await client.CallToolAsync("forward_event", new Dictionary<string, object?>
         {
-            ["eventName"] = "unknown", ["method"] = "POST", ["body"] = "raw"
+            ["eventName"] = "unknown",
+            ["method"] = "POST",
+            ["body"] = "raw"
         });
         missing.IsError.ShouldBe(true);
         missing.StructuredContent!.Value.GetProperty("status").GetInt32().ShouldBe(404);
@@ -72,7 +75,9 @@ public class McpAcceptanceTests
         await using var ownedClient = client;
         var result = await client.CallToolAsync("forward_event", new Dictionary<string, object?>
         {
-            ["eventName"] = "cloud-test", ["method"] = "POST", ["body"] = "raw text",
+            ["eventName"] = "cloud-test",
+            ["method"] = "POST",
+            ["body"] = "raw text",
             ["headers"] = new Dictionary<string, string> { ["Authorization"] = "secret", ["mCp-Session-Id"] = "hidden", ["X-Event"] = "safe" }
         });
         result.IsError.ShouldBe(false);
@@ -97,7 +102,9 @@ public class McpAcceptanceTests
         await using var ownedClient = client;
         var result = await client.CallToolAsync("forward_event", new Dictionary<string, object?>
         {
-            ["eventName"] = "ping-fail", ["method"] = "POST", ["body"] = "{}",
+            ["eventName"] = "ping-fail",
+            ["method"] = "POST",
+            ["body"] = "{}",
             ["headers"] = new Dictionary<string, string> { ["Authorization"] = "secret" }
         });
         result.IsError.ShouldBe(false);
@@ -192,7 +199,10 @@ public class McpAcceptanceTests
     [Fact]
     public async Task DisabledEndpointReturnsNotFound()
     {
-        using var factory = new CustomWebApplicationFactory<Program>().WithSettings(new Dictionary<string, string?> { ["MCP_ENABLED"] = "false" });
+        using var factory = new CustomWebApplicationFactory<Program>().WithSettings(new Dictionary<string, string?>
+        {
+            ["MCP_ENABLED"] = "false"
+        });
         using var http = factory.CreateClient();
         (await http.PostAsync("/mcp", new StringContent("{}"))).StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -227,7 +237,8 @@ public class McpAcceptanceTests
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "test-mcp-key");
         await using var transport = new HttpClientTransport(new HttpClientTransportOptions
         {
-            Endpoint = new Uri("http://localhost/mcp"), TransportMode = HttpTransportMode.StreamableHttp
+            Endpoint = new Uri("http://localhost/mcp"),
+            TransportMode = HttpTransportMode.StreamableHttp
         }, http);
         await using var client = await McpClient.CreateAsync(transport, new McpClientOptions { ProtocolVersion = "2025-11-25" });
         client.SessionId.ShouldBeNull();

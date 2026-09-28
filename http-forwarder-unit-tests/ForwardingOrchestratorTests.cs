@@ -21,7 +21,7 @@ public class ForwardingOrchestratorTests
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         { ["PUBLISHER_ENABLED"] = publisher.ToString(), ["LOCATION_TAG"] = "local" }).Build();
         var publishing = new RemoteRulePublishingService(config, NullLogger<RemoteRulePublishingService>.Instance, Mock.Of<IPublishingService>());
-        return new ForwardingOrchestrator(_forwarding.Object, publishing, _storage.Object, config, _clock.Object);
+        return new ForwardingOrchestrator(_forwarding.Object, publishing, _storage.Object, config, _clock.Object, NullLogger<ForwardingOrchestrator>.Instance);
     }
 
     [Fact]

@@ -90,9 +90,11 @@ namespace http_forwarder_app.Controllers
                 return;
             }
             Response.StatusCode = outcome.Kind == ForwardingOutcomeKind.NoBody ? StatusCodes.Status400BadRequest : StatusCodes.Status404NotFound;
+            var isRemoteGetOrDelete = outcome.Kind == ForwardingOutcomeKind.RemoteRule &&
+                (method.Equals("GET", StringComparison.OrdinalIgnoreCase) || method.Equals("DELETE", StringComparison.OrdinalIgnoreCase));
             var message = outcome.Kind == ForwardingOutcomeKind.NoBody
                 ? $"Body not found for event {eventName} and method {method}"
-                : outcome.Kind == ForwardingOutcomeKind.RemoteRule && method is "GET" or "DELETE"
+                : isRemoteGetOrDelete
                     ? $"Rule not found for event {eventName}, method {method} and location {_configuration.GetLocationTag()}"
                     : $"Rule not found for event {eventName} and method {method}";
             await Response.WriteAsync(message);

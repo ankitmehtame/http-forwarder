@@ -6,6 +6,7 @@ using http_forwarder_app.Utils;
 using OneOf;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Internal;
+using Microsoft.Extensions.Logging;
 
 namespace http_forwarder_app.Services;
 
@@ -14,7 +15,8 @@ public sealed class ForwardingOrchestrator(
     RemoteRulePublishingService publishingService,
     IFailedRequestStorage storage,
     IConfiguration configuration,
-    ISystemClock clock)
+    ISystemClock clock,
+    ILogger<ForwardingOrchestrator> logger)
 {
     public async Task<ForwardingOutcome> ForwardAsync(string method, string eventName, string? body,
         IDictionary<string, string> headers, string? requestBaseUrl, CancellationToken cancellationToken = default, int? maxRetryErrorBytes = null)
@@ -66,6 +68,7 @@ public sealed class ForwardingOrchestrator(
                         FirstAttempt: now, LastAttempt: now, AttemptCount: 1, NextAttempt: now.Add(Constants.RetryIntervalMin), LastError: error);
                     try { storage.Store(failedRequest); }
                     finally { response.Response.Dispose(); }
+                    logger.LogInformation("Stored failed request {requestId} with event {eventName} for retry at {attemptTime}", failedRequest.Id, response.Rule.Event, failedRequest.NextAttempt);
                     return new ForwardingOutcome(ForwardingOutcomeKind.Response,
                         new HttpResponseMessage(System.Net.HttpStatusCode.Accepted)
                         { Content = new StringContent(string.Format(CultureInfo.InvariantCulture, "Request {0} accepted for retry - {1} at {2}", response.Rule.Event, failedRequest.Id, failedRequest.FirstAttempt.ToLocalTime())) },
@@ -79,7 +82,10 @@ public sealed class ForwardingOrchestrator(
             {
                 if (normalizedMethod is "GET" or "DELETE") return new ForwardingOutcome(ForwardingOutcomeKind.RemoteRule, remoteRule: remote.RemoteRule);
                 if (!configuration.IsPublisherEnabled())
+                {
+                    logger.LogWarning("Cannot publish remote rule {remoteRule} for event {eventName} because publishing is disabled", remote.RemoteRule.ToMinimal(), eventName);
                     return new ForwardingOutcome(ForwardingOutcomeKind.RemoteRule, new HttpResponseMessage(System.Net.HttpStatusCode.NotAcceptable) { Content = new StringContent("Request can not be processed by this system") }, remoteRule: remote.RemoteRule);
+                }
                 var publish = await publishingService.Publish(new ForwardingRequest(normalizedMethod, eventName, body ?? string.Empty, headers.ToImmutableSortedDictionary(StringComparer.OrdinalIgnoreCase)), remote.RemoteRule);
                 return publish.Match(
                     success => new ForwardingOutcome(ForwardingOutcomeKind.RemoteRule, new HttpResponseMessage(System.Net.HttpStatusCode.Accepted) { Content = new StringContent($"Request will be processed by another system, published successfully with message Id {success.MessageId}") }, messageId: success.MessageId, remoteRule: remote.RemoteRule),
