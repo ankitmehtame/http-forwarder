@@ -65,6 +65,7 @@ The ASP.NET Core app can expose `/mcp` using stateless MCP Streamable HTTP. It i
 | --- | --- |
 | `MCP_ENABLED` | Set `true` to map `/mcp`; otherwise requests return 404. |
 | `MCP_ALLOWED_API_KEYS` | Required when enabled. Comma-separated dedicated bearer tokens, separate from Cloud Function keys. |
+| `MCP_PROTOCOL_VERSION` | Optional single protocol revision to accept. Supports `2024-11-05`, `2025-03-26`, `2025-06-18`, `2025-11-25`, or `2026-07-28`. If unset, the SDK negotiates its supported revisions. Pinning `2026-07-28` rejects older `initialize` handshakes; that revision uses `server/discover` and per-request metadata instead. |
 | `MCP_BASE_URL` | Optional trusted absolute HTTP(S) base for relative rule targets. Set this to the internal forwarder address when possible. |
 | `MCP_ALLOWED_HOSTS` | Required when no base URL is configured. Comma-separated exact request hosts including ports if present, such as `forwarder.example:443`. The fallback base uses the validated incoming scheme and host. Configure your reverse proxy to validate Host and set the trusted scheme; the app does not trust `X-Forwarded-Host` or `X-Forwarded-Proto`. |
 | `MCP_ALLOWED_ORIGINS` | Comma-separated allowed Origin values. Requests with an Origin outside this list are rejected; requests without Origin are allowed. |
@@ -86,6 +87,8 @@ curl -i https://forwarder.example/mcp \
   -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ping_test","arguments":{}}}'
 ```
+
+This curl example uses a handshake revision. With `MCP_PROTOCOL_VERSION=2026-07-28`, use a client that supports `server/discover` and per-request metadata instead; the server rejects `initialize`. Pinning an older revision rejects 2026-07-28 clients.
 
 MCP exposes one tool per forwarding rule that explicitly opts in with an `mcp` object in `conf/rules.json`. Rules without this metadata remain available to the HTTP API but are not advertised over MCP. Each tool has a stable, unique `toolName` and description. For example, `ping_test` maps to the configured GET rule, while `ping_request` accepts a JSON object with a required string `message`:
 

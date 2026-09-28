@@ -24,7 +24,11 @@ builder.Services.AddControllers(options =>
     options.InputFormatters.Insert(0, new http_forwarder_app.Formatters.RawRequestBodyFormatter());
 });
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddMcpServer()
+builder.Services.AddMcpServer(options =>
+{
+    var protocolVersion = builder.Configuration["MCP_PROTOCOL_VERSION"];
+    if (!string.IsNullOrWhiteSpace(protocolVersion)) options.ProtocolVersion = protocolVersion;
+})
     .WithHttpTransport(options => options.SessionMode = HttpServerSessionMode.Stateless)
     .WithListToolsHandler((ctx, _) => ValueTask.FromResult(ForwardingMcpTools.ListTools(ctx.Services!.GetRequiredService<AppState>())))
     .WithCallToolHandler(ForwardingMcpTools.CallToolAsync);

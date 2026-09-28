@@ -20,6 +20,10 @@ public static class ConfigurationExtensions
         ValidatePositiveNumber(configuration, Constants.RATE_LIMIT_WINDOW_SECONDS, errors);
         if (configuration.GetValue<bool>("MCP_ENABLED"))
         {
+            var protocolVersion = configuration["MCP_PROTOCOL_VERSION"];
+            if (!string.IsNullOrWhiteSpace(protocolVersion) && protocolVersion is not
+                ("2024-11-05" or "2025-03-26" or "2025-06-18" or "2025-11-25" or "2026-07-28"))
+                errors.Add("MCP_PROTOCOL_VERSION must be one of 2024-11-05, 2025-03-26, 2025-06-18, 2025-11-25, 2026-07-28");
             if (string.IsNullOrWhiteSpace(configuration["MCP_ALLOWED_API_KEYS"]) ||
                 !(configuration["MCP_ALLOWED_API_KEYS"] ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Any())
                 errors.Add("MCP_ALLOWED_API_KEYS is required when MCP_ENABLED=true");

@@ -18,7 +18,8 @@ namespace http_forwarder_acceptance_tests;
 
 public class McpAcceptanceTests
 {
-    private static async Task<(HttpClientTransport Transport, McpClient Client)> Connect(CustomWebApplicationFactory<Program> factory)
+    private static async Task<(HttpClientTransport Transport, McpClient Client)> Connect(CustomWebApplicationFactory<Program> factory,
+        string protocolVersion = "2025-11-25")
     {
         var http = factory.CreateClient();
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "test-mcp-key");
@@ -27,8 +28,64 @@ public class McpAcceptanceTests
             Endpoint = new Uri("http://localhost/mcp"),
             TransportMode = HttpTransportMode.StreamableHttp
         }, http);
-        var client = await McpClient.CreateAsync(transport, new McpClientOptions { ProtocolVersion = "2025-11-25" });
+        var client = await McpClient.CreateAsync(transport, new McpClientOptions { ProtocolVersion = protocolVersion });
         return (transport, client);
+    }
+
+    [Fact]
+    public async Task PinnedJuly2026ProtocolAcceptsNewClientAndRejectsHandshake()
+    {
+        using var factory = new CustomWebApplicationFactory<Program>().WithSettings(new Dictionary<string, string?>
+        {
+            ["MCP_PROTOCOL_VERSION"] = "2026-07-28"
+        });
+        var (transport, client) = await Connect(factory, "2026-07-28");
+        await using var ownedTransport = transport;
+        await using var ownedClient = client;
+        client.NegotiatedProtocolVersion.ShouldBe("2026-07-28");
+        (await client.ListToolsAsync()).Select(x => x.Name).ShouldContain("ping_test");
+        var result = await client.CallToolAsync("ping_test", new Dictionary<string, object?>());
+        result.IsError.ShouldBe(false);
+
+        using var http = factory.CreateClient();
+        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "test-mcp-key");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/mcp")
+        {
+            Content = new StringContent("""
+                {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"old-client","version":"1.0"}}}
+                """, System.Text.Encoding.UTF8, "application/json")
+        };
+        request.Headers.Accept.ParseAdd("application/json");
+        request.Headers.Accept.ParseAdd("text/event-stream");
+        request.Headers.TryAddWithoutValidation("MCP-Protocol-Version", "2025-11-25");
+        using var rejected = await http.SendAsync(request);
+        (await rejected.Content.ReadAsStringAsync()).ShouldContain("error");
+    }
+
+    [Fact]
+    public async Task PinnedHandshakeProtocolRejectsJuly2026Client()
+    {
+        using var factory = new CustomWebApplicationFactory<Program>().WithSettings(new Dictionary<string, string?>
+        {
+            ["MCP_PROTOCOL_VERSION"] = "2025-11-25"
+        });
+        var (transport, client) = await Connect(factory);
+        await using var ownedTransport = transport;
+        await using var ownedClient = client;
+        client.NegotiatedProtocolVersion.ShouldBe("2025-11-25");
+
+        using var http = factory.CreateClient();
+        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "test-mcp-key");
+        await using var latestTransport = new HttpClientTransport(new HttpClientTransportOptions
+        {
+            Endpoint = new Uri("http://localhost/mcp"),
+            TransportMode = HttpTransportMode.StreamableHttp
+        }, http);
+        await Should.ThrowAsync<Exception>(async () =>
+        {
+            await using var latestClient = await McpClient.CreateAsync(latestTransport,
+                new McpClientOptions { ProtocolVersion = "2026-07-28" });
+        });
     }
 
     [Fact]
