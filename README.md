@@ -96,19 +96,19 @@ MCP exposes one tool per forwarding rule that explicitly opts in with an `mcp` o
   "targetUrl": "/api/ping",
   "hasContent": true,
   "headers": { "Content-Type": "application/json" },
+  "bodySchema": {
+    "type": "object",
+    "properties": { "message": { "type": "string" } },
+    "required": ["message"]
+  },
   "mcp": {
     "toolName": "ping_request",
-    "description": "Send a ping message.",
-    "bodySchema": {
-      "type": "object",
-      "properties": { "message": { "type": "string" } },
-      "required": ["message"]
-    }
+    "description": "Send a ping message."
   }
 }
 ```
 
-Schema properties are tool arguments and are serialized as the request's JSON body; the schema is enforced when the tool is called. Omitting `bodySchema` creates a zero-argument tool. For POST/PUT, set `hasContent: false`; the rule can supply fixed `content` or send an empty body. MCP never accepts a caller-supplied destination URL. Rule changes are loaded at application startup, so restart every instance after editing rules. Keep tool names, schemas and rule behavior equivalent across instances. Configured rule credentials still apply. Credentials from the MCP transport are never forwarded.
+`bodySchema` belongs to the forwarding rule, independent of its optional `mcp` metadata. MCP uses schema properties as tool arguments, serializes them as the request's JSON body, and validates them when the tool is called. The HTTP forwarding API does not yet validate bodies against this schema. Omitting `bodySchema` creates a zero-argument tool. For POST/PUT, set `hasContent: false`; the rule can supply fixed `content` or send an empty body. MCP never accepts a caller-supplied destination URL. Rule changes are loaded at application startup, so restart every instance after editing rules. Keep tool names, schemas and rule behavior equivalent across instances. Configured rule credentials still apply. Credentials from the MCP transport are never forwarded.
 
 The tool returns a JSON text block and `structuredContent` with `kind`, `status`, `body`, `encoding`, `headers`, `truncated`, `bytesRead`, `maxBytes`, `retryId`, and `messageId`. `encoding` is `text` for text, JSON and XML media types (decoded as UTF-8), and `base64` for other types. A body larger than the cap is cut to `maxBytes`; `truncated` records this without changing the forwarding status. Hop-by-hop headers, `Connection`-nominated names, cookies, credentials and `MASKED_HEADERS` are omitted from results. Missing rules and content, publishing failures, and downstream 4xx/5xx responses set `isError`; 2xx and 3xx do not. `kind=retry_accepted` or `kind=published` with status 202 means accepted for later work, not delivery.
 

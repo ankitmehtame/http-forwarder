@@ -40,7 +40,7 @@ public sealed class ForwardingMcpToolExecutor(ForwardingOrchestrator orchestrato
         timeout.CancelAfter(configuration.GetOutboundHttpTimeout());
         try
         {
-            var effectiveBody = rule.Mcp?.BodySchema is null && rule.Content is not null ? rule.Content : body;
+            var effectiveBody = rule.BodySchema is null && rule.Content is not null ? rule.Content : body;
             using var outcome = await orchestrator.ForwardAsync(rule.Method, rule.Event, effectiveBody, new Dictionary<string, string>(), trustedBase, timeout.Token,
                 configuration.GetValue("MCP_MAX_RESPONSE_BYTES", 1048576));
             var status = outcome.StatusCode ?? (outcome.Kind == ForwardingOutcomeKind.NoBody ? 400 : 404);
@@ -141,14 +141,14 @@ public static class ForwardingMcpTools
                 throw new InvalidOperationException($"MCP tool '{metadata.ToolName}' does not match the selected forwarding rule for {rule.Method} {rule.Event}");
             if (rule.Method is "GET" or "DELETE")
             {
-                if (metadata.BodySchema is not null)
+                if (rule.BodySchema is not null)
                     throw new InvalidOperationException($"Tool '{metadata.ToolName}' cannot define bodySchema for {rule.Method}");
                 if (state.RemoteRules.Contains(rule))
                     throw new InvalidOperationException($"Remote {rule.Method} rule '{metadata.ToolName}' cannot be exposed through MCP");
             }
-            else if (metadata.BodySchema is null && rule.HasContent)
+            else if (rule.BodySchema is null && rule.HasContent)
                 throw new InvalidOperationException($"POST/PUT tool '{metadata.ToolName}' without bodySchema requires hasContent=false");
-            if (metadata.BodySchema is { } schema)
+            if (rule.BodySchema is { } schema)
             {
                 if (rule.Method is not ("POST" or "PUT") || !rule.HasContent || rule.Content is not null)
                     throw new InvalidOperationException($"Tool '{metadata.ToolName}' bodySchema requires a POST/PUT rule without fixed content");
@@ -172,7 +172,7 @@ public static class ForwardingMcpTools
     {
         Tools = GetRules(state).Select(rule =>
         {
-            var schema = rule.Mcp!.BodySchema?.Clone() ?? EmptyInputSchema;
+            var schema = rule.BodySchema?.Clone() ?? EmptyInputSchema;
             return new Tool { Name = rule.Mcp.ToolName, Description = rule.Mcp.Description, InputSchema = schema, OutputSchema = ResultSchema };
         }).ToList()
     };
@@ -184,7 +184,7 @@ public static class ForwardingMcpTools
         if (rule is null) return Error($"Unknown tool '{context.Params.Name}'", 404);
         var args = context.Params?.Arguments ?? new Dictionary<string, JsonElement>();
         string? body = null;
-        if (rule.Mcp!.BodySchema is { } schema)
+        if (rule.BodySchema is { } schema)
         {
             var validationSchema = JsonSchema.FromText(schema.GetRawText());
             var value = JsonSerializer.SerializeToElement(args);

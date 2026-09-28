@@ -68,21 +68,21 @@
         "method": "POST",
         "event": "ping-request",
         "targetUrl": "/api/ping",
+        "bodySchema": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "Message to send.",
+                    "examples": ["hello"]
+                }
+            },
+            "required": ["message"],
+            "additionalProperties": false
+        },
         "mcp": {
             "toolName": "ping_request",
-            "description": "Send a ping message.",
-            "bodySchema": {
-                "type": "object",
-                "properties": {
-                    "message": {
-                        "type": "string",
-                        "description": "Message to send.",
-                        "examples": ["hello"]
-                    }
-                },
-                "required": ["message"],
-                "additionalProperties": false
-            }
+            "description": "Send a ping message."
         },
         "hasContent": true,
         "headers": {
@@ -124,17 +124,17 @@
         "method": "POST",
         "event": "ping-retry",
         "targetUrl": "/api/ping",
+        "bodySchema": {
+            "type": "object",
+            "properties": {
+                "message": { "type": "string", "description": "Message to retry if forwarding fails." }
+            },
+            "required": ["message"],
+            "additionalProperties": false
+        },
         "mcp": {
             "toolName": "ping_retry",
-            "description": "Send a retryable ping message.",
-            "bodySchema": {
-                "type": "object",
-                "properties": {
-                    "message": { "type": "string", "description": "Message to retry if forwarding fails." }
-                },
-                "required": ["message"],
-                "additionalProperties": false
-            }
+            "description": "Send a retryable ping message."
         },
         "hasContent": true,
         "retry": {

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using http_forwarder_app.Models;
 using http_forwarder_app.Services;
+using http_forwarder_app.Utils;
 using Shouldly;
 
 namespace http_forwarder_unit_tests;
@@ -24,6 +25,24 @@ public class ForwardingMcpToolsTests
         ForwardingMcpTools.ValidateRules(second);
         ForwardingMcpTools.ListTools(first).Tools.Select(x => x.Name).ShouldBe(["read_one"]);
         ForwardingMcpTools.ListTools(second).Tools.Select(x => x.Name).ShouldBe(["read_two"]);
+    }
+
+    [Fact]
+    public void RuleSchemaWithoutMcpIsPreservedButNotAdvertised()
+    {
+        var schema = JsonDocument.Parse("{\"type\":\"object\"}").RootElement.Clone();
+        var rule = new ForwardingRule("POST", "private", "/private") { BodySchema = schema };
+        var dto = rule.ToDto();
+        dto.BodySchema.ShouldNotBeNull();
+        dto.ToForwardingRule().BodySchema.ShouldNotBeNull();
+        var json = JsonUtils.Serialize(dto, false);
+        using var document = JsonDocument.Parse(json);
+        document.RootElement.GetProperty("bodySchema").GetProperty("type").GetString().ShouldBe("object");
+        JsonUtils.Deserialize<ForwardingRuleDto>(json)!.ToForwardingRule().BodySchema.ShouldNotBeNull();
+
+        var state = new AppState { Rules = [dto.ToForwardingRule()] };
+        ForwardingMcpTools.ValidateRules(state);
+        ForwardingMcpTools.ListTools(state).Tools.ShouldBeEmpty();
     }
 
     [Fact]
@@ -60,7 +79,7 @@ public class ForwardingMcpToolsTests
         var state = new AppState
         {
             Rules = [new ForwardingRule("POST", "one", "/one")
-            { Mcp = new("send_one", "Send one", JsonDocument.Parse(schema).RootElement.Clone()) }]
+            { BodySchema = JsonDocument.Parse(schema).RootElement.Clone(), Mcp = new("send_one", "Send one") }]
         };
         Should.Throw<InvalidOperationException>(() => ForwardingMcpTools.ValidateRules(state))
             .Message.ShouldContain("top-level type object");

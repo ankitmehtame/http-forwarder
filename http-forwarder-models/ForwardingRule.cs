@@ -9,7 +9,7 @@ namespace http_forwarder_app.Models;
 
 public record class ForwardingRule
 {
-    public ForwardingRule(string method, string @event, string targetUrl, bool hasContent, string? content, bool ignoreSslError, ImmutableDictionary<string, string> headers, ImmutableHashSet<string> ignoredRequestHeaders, ImmutableHashSet<string> tags, RuleRetry retry, ForwardingRuleMcp? mcp = null)
+    public ForwardingRule(string method, string @event, string targetUrl, bool hasContent, string? content, bool ignoreSslError, ImmutableDictionary<string, string> headers, ImmutableHashSet<string> ignoredRequestHeaders, ImmutableHashSet<string> tags, RuleRetry retry, ForwardingRuleMcp? mcp = null, JsonElement? bodySchema = null)
     {
         Method = method;
         Event = @event;
@@ -22,6 +22,7 @@ public record class ForwardingRule
         Tags = tags;
         Retry = retry;
         Mcp = mcp;
+        BodySchema = bodySchema;
     }
 
     public ForwardingRule(string method, string @event, string targetUrl) : this(method, @event, targetUrl, true, null, false, ImmutableDictionary<string, string>.Empty, ImmutableHashSet<string>.Empty, ImmutableHashSet<string>.Empty, RuleRetry.DisabledDefault)
@@ -38,7 +39,8 @@ public record class ForwardingRule
         dto.IgnoredRequestHeaders ?? ImmutableHashSet<string>.Empty,
         dto.Tags ?? ImmutableHashSet<string>.Empty,
         dto.Retry ?? RuleRetry.DisabledDefault,
-        dto.Mcp)
+        dto.Mcp,
+        dto.BodySchema)
     { }
 
 
@@ -75,6 +77,8 @@ public record class ForwardingRule
     public RuleRetry Retry { get; init; }
 
     public ForwardingRuleMcp? Mcp { get; init; }
+
+    public JsonElement? BodySchema { get; init; }
 
     public override string ToString()
     {
@@ -133,7 +137,8 @@ public record class ForwardingRuleDto(string Method,
     ImmutableHashSet<string>? IgnoredRequestHeaders = null,
     ImmutableHashSet<string>? Tags = null,
     RuleRetry? Retry = null,
-    ForwardingRuleMcp? Mcp = null)
+    ForwardingRuleMcp? Mcp = null,
+    JsonElement? BodySchema = null)
 {
     public ForwardingRule ToForwardingRule()
     {
@@ -152,14 +157,15 @@ public record class ForwardingRuleDto(string Method,
             IgnoredRequestHeaders: rule.IgnoredRequestHeaders,
             Tags: rule.Tags,
             Retry: rule.Retry,
-            Mcp: rule.Mcp
+            Mcp: rule.Mcp,
+            BodySchema: rule.BodySchema
         )
     { }
 
     public ForwardingRuleDto() : this(string.Empty, string.Empty, string.Empty) { }
 }
 
-public sealed record ForwardingRuleMcp(string ToolName, string Description, JsonElement? BodySchema = null);
+public sealed record ForwardingRuleMcp(string ToolName, string Description);
 
 public static class ForwardingRuleExtensions
 {
