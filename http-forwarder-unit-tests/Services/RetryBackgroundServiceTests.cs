@@ -287,6 +287,40 @@ public class RetryBackgroundServiceTests
     }
 
     [Fact]
+    public async Task ProcessPendingAsync_DispatchesStoredDeleteAndDisposesResponse()
+    {
+        var rule = CreateRule() with { Method = "DELETE" };
+        var request = CreateTestRequest(rule);
+        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent("ok") };
+        _storageMock.Setup(x => x.GetRequestsDue(It.IsAny<DateTimeOffset>())).Returns([request]);
+        _forwardingServiceMock.Setup(x => x.ProcessDeleteEvent(request.Rule.Event, request.RequestHostUrl, request.RequestHeaders))
+            .ReturnsAsync(new HttpResponseRuleResult(response, rule));
+
+        await _service.ProcessPendingAsync(_startTime.AddSeconds(1), CancellationToken.None);
+
+        _forwardingServiceMock.Verify(x => x.ProcessDeleteEvent(request.Rule.Event, request.RequestHostUrl, request.RequestHeaders), Times.Once);
+        _forwardingServiceMock.Verify(x => x.ProcessPostEvent(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IDictionary<string, string>>()), Times.Never);
+        _storageMock.Verify(x => x.Remove(request.Id), Times.Once);
+        await Shouldly.Should.ThrowAsync<ObjectDisposedException>(() => response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task ProcessPendingAsync_DispatchesStoredPutAndUpdatesSameRetryRecord()
+    {
+        var rule = CreateRule() with { Method = "PUT" };
+        var request = CreateTestRequest(rule);
+        _storageMock.Setup(x => x.GetRequestsDue(It.IsAny<DateTimeOffset>())).Returns([request]);
+        _forwardingServiceMock.Setup(x => x.ProcessPutEvent(request.Rule.Event, request.RequestHostUrl, request.RequestBody, request.RequestHeaders))
+            .ReturnsAsync(new HttpResponseRuleResult(new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError), rule));
+
+        await _service.ProcessPendingAsync(_startTime.AddSeconds(1), CancellationToken.None);
+
+        _forwardingServiceMock.Verify(x => x.ProcessPutEvent(request.Rule.Event, request.RequestHostUrl, request.RequestBody, request.RequestHeaders), Times.Once);
+        _forwardingServiceMock.Verify(x => x.ProcessPostEvent(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IDictionary<string, string>>()), Times.Never);
+        _storageMock.Verify(x => x.Store(It.Is<FailedRequest>(r => r.Id == request.Id && r.AttemptCount == request.AttemptCount + 1)), Times.Once);
+    }
+
+    [Fact]
     public async Task ProcessPendingAsync_ShouldRemoveRequestOnNoRuleFound()
     {
         // Arrange

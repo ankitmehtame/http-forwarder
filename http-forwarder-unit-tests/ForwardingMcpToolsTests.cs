@@ -1,0 +1,134 @@
+using System.Text.Json;
+using http_forwarder_app.Models;
+using http_forwarder_app.Services;
+using http_forwarder_app.Utils;
+using Shouldly;
+
+namespace http_forwarder_unit_tests;
+
+public class ForwardingMcpToolsTests
+{
+    [Fact]
+    public void CatalogDependsOnLoadedRules()
+    {
+        var first = new AppState
+        {
+            Rules = [new ForwardingRule("GET", "one", "/one") { Mcp = new("read_one", "Read one") },
+                new ForwardingRule("GET", "private", "/private")]
+        };
+        var second = new AppState
+        {
+            Rules = [new ForwardingRule("GET", "two", "/two") { Mcp = new("read_two", "Read two") }]
+        };
+
+        ForwardingMcpTools.ValidateRules(first);
+        ForwardingMcpTools.ValidateRules(second);
+        ForwardingMcpTools.ListTools(first).Tools.Select(x => x.Name).ShouldBe(["read_one"]);
+        ForwardingMcpTools.ListTools(second).Tools.Select(x => x.Name).ShouldBe(["read_two"]);
+    }
+
+    [Fact]
+    public void SchemaCacheKeepsEachInstancesRulesSeparate()
+    {
+        static AppState CreateState(string requiredProperty) => new()
+        {
+            Rules = [new ForwardingRule("POST", "event", "/target")
+            {
+                Mcp = new("send_event", "Send event"),
+                BodySchema = JsonDocument.Parse($$"""{"type":"object","required":["{{requiredProperty}}"]}""").RootElement.Clone()
+            }]
+        };
+
+        var first = new ForwardingMcpSchemaCache();
+        first.Initialize(CreateState("first"));
+        var second = new ForwardingMcpSchemaCache();
+        second.Initialize(CreateState("second"));
+
+        var firstSchema = first.Get("send_event");
+        ReferenceEquals(firstSchema, first.Get("send_event")).ShouldBeTrue();
+        firstSchema.Evaluate(JsonSerializer.SerializeToElement(new { first = "value" })).IsValid.ShouldBeTrue();
+        second.Get("send_event").Evaluate(JsonSerializer.SerializeToElement(new { first = "value" })).IsValid.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void RuleSchemaWithoutMcpIsPreservedButNotAdvertised()
+    {
+        var schema = JsonDocument.Parse("{\"type\":\"object\"}").RootElement.Clone();
+        var rule = new ForwardingRule("POST", "private", "/private") { BodySchema = schema };
+        var dto = rule.ToDto();
+        dto.BodySchema.ShouldNotBeNull();
+        dto.ToForwardingRule().BodySchema.ShouldNotBeNull();
+        var json = JsonUtils.Serialize(dto, false);
+        using var document = JsonDocument.Parse(json);
+        document.RootElement.GetProperty("bodySchema").GetProperty("type").GetString().ShouldBe("object");
+        JsonUtils.Deserialize<ForwardingRuleDto>(json)!.ToForwardingRule().BodySchema.ShouldNotBeNull();
+
+        var state = new AppState { Rules = [dto.ToForwardingRule()] };
+        ForwardingMcpTools.ValidateRules(state);
+        ForwardingMcpTools.ListTools(state).Tools.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void DuplicateNamesAreRejectedAtStartup()
+    {
+        var state = new AppState
+        {
+            Rules = [new ForwardingRule("GET", "one", "/one") { Mcp = new("same_tool", "Read one") }],
+            RemoteRules = [new ForwardingRule("POST", "two", "/two")
+            { HasContent = false, Mcp = new("same_tool", "Send two") }]
+        };
+
+        Should.Throw<InvalidOperationException>(() => ForwardingMcpTools.ValidateRules(state))
+            .Message.ShouldContain("Duplicate MCP tool name");
+    }
+
+    [Fact]
+    public void ToolCannotAdvertiseShadowedRule()
+    {
+        var state = new AppState
+        {
+            Rules = [new ForwardingRule("GET", "same", "/actual"),
+                new ForwardingRule("GET", "same", "/shadowed") { Mcp = new("read_shadowed", "Never selected") }]
+        };
+        Should.Throw<InvalidOperationException>(() => ForwardingMcpTools.ValidateRules(state))
+            .Message.ShouldContain("does not match the selected forwarding rule");
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"type\":\"string\"}")]
+    public void NonObjectBodySchemaIsRejected(string schema)
+    {
+        var state = new AppState
+        {
+            Rules = [new ForwardingRule("POST", "one", "/one")
+            { BodySchema = JsonDocument.Parse(schema).RootElement.Clone(), Mcp = new("send_one", "Send one") }]
+        };
+        Should.Throw<InvalidOperationException>(() => ForwardingMcpTools.ValidateRules(state))
+            .Message.ShouldContain("top-level type object");
+    }
+
+    [Fact]
+    public void FixedContentRequiresNoCallerBodyAtStartup()
+    {
+        var state = new AppState
+        {
+            Rules = [new ForwardingRule("POST", "one", "/one")
+            { Content = "{\"message\":\"predefined\"}", Mcp = new("send_one", "Send one") }]
+        };
+        Should.Throw<InvalidOperationException>(() => ForwardingMcpTools.ValidateRules(state))
+            .Message.ShouldContain("hasContent=false");
+    }
+
+    [Fact]
+    public void RemoteGetCannotBeAdvertisedRegardlessOfLocationTag()
+    {
+        var state = new AppState
+        {
+            RemoteRules = [new ForwardingRule("GET", "remote", "/remote")
+            { Mcp = new("remote_get", "Read remote") }]
+        };
+        Should.Throw<InvalidOperationException>(() => ForwardingMcpTools.ValidateRules(state))
+            .Message.ShouldContain("Remote GET");
+    }
+}

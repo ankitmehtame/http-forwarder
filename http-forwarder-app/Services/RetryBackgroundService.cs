@@ -5,6 +5,7 @@ using http_forwarder_app.Extensions;
 using http_forwarder_app.Core;
 using http_forwarder_app.Utils;
 using Microsoft.Extensions.Configuration;
+using OneOf;
 
 namespace http_forwarder_app.Services;
 
@@ -43,15 +44,12 @@ public class RetryBackgroundService : BackgroundService
     {
         try
         {
-            var result = await _forwardingService.ProcessPostEvent(
-                eventName: request.Rule.Event,
-                requestHostUrl: request.RequestHostUrl,
-                requestContent: request.RequestBody,
-                requestHeaders: request.RequestHeaders);
+            var result = await ProcessStoredRequestAsync(request);
 
             await result.Match(
                 ruleResult =>
                 {
+                    using var response = ruleResult.Response;
                     if (ruleResult.Response.IsSuccessStatusCode)
                     {
                         // Remove request from storage if successful
@@ -102,6 +100,23 @@ public class RetryBackgroundService : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Retry attempt failed for request {RequestId}", request.Id);
+        }
+    }
+
+    private async Task<OneOf<HttpResponseRuleResult, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>> ProcessStoredRequestAsync(FailedRequest request)
+    {
+        switch (request.Rule.Method.ToUpperInvariant())
+        {
+            case "PUT":
+                return await _forwardingService.ProcessPutEvent(request.Rule.Event, request.RequestHostUrl, request.RequestBody, request.RequestHeaders);
+            case "DELETE":
+                return (await _forwardingService.ProcessDeleteEvent(request.Rule.Event, request.RequestHostUrl, request.RequestHeaders))
+                    .Match<OneOf<HttpResponseRuleResult, NoMatchingRuleResult, NoBodyRuleResult, RemoteRuleFoundResult>>(response => response, noRule => noRule, remote => remote);
+            case "POST":
+                return await _forwardingService.ProcessPostEvent(request.Rule.Event, request.RequestHostUrl, request.RequestBody, request.RequestHeaders);
+            default:
+                _logger.LogWarning("Stored request {requestId} has unsupported method {method}", request.Id, request.Rule.Method);
+                return NoMatchingRuleResult.Instance;
         }
     }
 

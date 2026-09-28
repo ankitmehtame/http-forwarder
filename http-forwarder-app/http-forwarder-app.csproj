@@ -14,6 +14,8 @@
     <PackageReference Include="Semver" />
     <PackageReference Include="Google.Cloud.PubSub.V1" />
     <PackageReference Include="OneOf" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+    <PackageReference Include="JsonSchema.Net" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../http-forwarder-cloud/http-forwarder-cloud.csproj" />
