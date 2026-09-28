@@ -40,28 +40,22 @@ public class McpAcceptanceTests
         await using var ownedClient = client;
         client.SessionId.ShouldBeNull();
         var tools = await client.ListToolsAsync();
-        tools.Count.ShouldBe(1);
-        tools[0].Name.ShouldBe("forward_event");
-        tools[0].ProtocolTool.InputSchema.GetProperty("properties").GetProperty("method").GetProperty("enum")
-            .EnumerateArray().Select(x => x.GetString()).ShouldBe(new[] { "GET", "POST", "PUT", "DELETE" });
+        tools.Select(x => x.Name).ShouldContain("ping_test");
+        tools.Select(x => x.Name).ShouldContain("ping_request");
+        tools.Select(x => x.Name).ShouldNotContain("forward_event");
+        tools.Select(x => x.Name).ShouldNotContain("TEST");
+        tools.Select(x => x.Name).ShouldContain("cloud_test");
+        tools.Single(x => x.Name == "ping_test_post").ProtocolTool.InputSchema.GetProperty("additionalProperties").GetBoolean().ShouldBeFalse();
+        tools.Single(x => x.Name == "ping_request").ProtocolTool.InputSchema.GetProperty("required")
+            .EnumerateArray().Select(x => x.GetString()).ShouldContain("message");
+        tools.Single(x => x.Name == "ping_request").ProtocolTool.InputSchema.GetProperty("properties")
+            .GetProperty("message").GetProperty("description").GetString().ShouldBe("Message to send.");
 
-        var result = await client.CallToolAsync("forward_event", new Dictionary<string, object?>
-        {
-            ["eventName"] = "ping-test",
-            ["method"] = "GET"
-        });
+        var result = await client.CallToolAsync("ping_test", new Dictionary<string, object?>());
         result.IsError.ShouldBe(false);
         result.StructuredContent!.Value.GetProperty("status").GetInt32().ShouldBe(200);
         result.StructuredContent.Value.GetProperty("body").GetString()!.ShouldContain("Pong");
 
-        var missing = await client.CallToolAsync("forward_event", new Dictionary<string, object?>
-        {
-            ["eventName"] = "unknown",
-            ["method"] = "POST",
-            ["body"] = "raw"
-        });
-        missing.IsError.ShouldBe(true);
-        missing.StructuredContent!.Value.GetProperty("status").GetInt32().ShouldBe(404);
     }
 
     [Fact]
@@ -73,23 +67,36 @@ public class McpAcceptanceTests
         var (transport, client) = await Connect(factory);
         await using var ownedTransport = transport;
         await using var ownedClient = client;
-        var result = await client.CallToolAsync("forward_event", new Dictionary<string, object?>
-        {
-            ["eventName"] = "cloud-test",
-            ["method"] = "POST",
-            ["body"] = "raw text",
-            ["headers"] = new Dictionary<string, string> { ["Authorization"] = "secret", ["mCp-Session-Id"] = "hidden", ["X-Event"] = "safe" }
-        });
+        var result = await client.CallToolAsync("cloud_test", new Dictionary<string, object?>());
         result.IsError.ShouldBe(false);
         result.StructuredContent!.Value.GetProperty("kind").GetString().ShouldBe("published");
         result.StructuredContent.Value.GetProperty("status").GetInt32().ShouldBe(202);
         publisher.MockPublisherClient.Verify(x => x.PublishAsync(It.IsAny<PubsubMessage>()), Times.Once);
         var published = publisher.PublishedMessages.Single();
         var text = System.Text.Encoding.UTF8.GetString(published.Data.ToByteArray());
-        text.ShouldContain("X-Event");
+        text.ShouldContain("cloud-message-567");
         text.ShouldNotContain("secret");
         text.ShouldNotContain("test-mcp-key");
         text.ShouldNotContain("Session-Id");
+    }
+
+    [Theory]
+    [InlineData("false", null, 406)]
+    [InlineData("true", "", 500)]
+    public async Task RemoteToolReportsPublishingFailures(string publisherEnabled, string? cloudTopic, int expectedStatus)
+    {
+        using var factory = new CustomWebApplicationFactory<Program>().WithSettings(new Dictionary<string, string?>
+        {
+            ["PUBLISHER_ENABLED"] = publisherEnabled,
+            ["PUBSUB_TOPIC_ID_CLOUD"] = cloudTopic,
+            ["PUBSUB_TOPIC_ID"] = "unused-test-topic"
+        });
+        var (transport, client) = await Connect(factory);
+        await using var ownedTransport = transport;
+        await using var ownedClient = client;
+        var result = await client.CallToolAsync("cloud_test", new Dictionary<string, object?>());
+        result.IsError.ShouldBe(true);
+        result.StructuredContent!.Value.GetProperty("status").GetInt32().ShouldBe(expectedStatus);
     }
 
     [Fact]
@@ -100,19 +107,13 @@ public class McpAcceptanceTests
         var (transport, client) = await Connect(factory);
         await using var ownedTransport = transport;
         await using var ownedClient = client;
-        var result = await client.CallToolAsync("forward_event", new Dictionary<string, object?>
-        {
-            ["eventName"] = "ping-fail",
-            ["method"] = "POST",
-            ["body"] = "{}",
-            ["headers"] = new Dictionary<string, string> { ["Authorization"] = "secret" }
-        });
+        var result = await client.CallToolAsync("ping_retry", new Dictionary<string, object?> { ["message"] = "FAIL" });
         result.IsError.ShouldBe(false);
         result.StructuredContent!.Value.GetProperty("kind").GetString().ShouldBe("retry_accepted");
         var id = result.StructuredContent.Value.GetProperty("retryId").GetGuid();
         var stored = storage.GetAllRequests().Single(x => x.Id == id);
         stored.RequestHeaders.Keys.ShouldNotContain("Authorization");
-        stored.RequestBody.ShouldBe("{}");
+        stored.RequestBody.ShouldBe("{\"message\":\"FAIL\"}");
         storage.Remove(id);
     }
 
@@ -123,20 +124,34 @@ public class McpAcceptanceTests
         var (transport, client) = await Connect(factory);
         await using var ownedTransport = transport;
         await using var ownedClient = client;
-        var noBody = await client.CallToolAsync("forward_event", new Dictionary<string, object?>
-        { ["eventName"] = "ping-request", ["method"] = "POST" });
+        var noBody = await client.CallToolAsync("ping_request", new Dictionary<string, object?>());
         noBody.IsError.ShouldBe(true);
         noBody.StructuredContent!.Value.GetProperty("status").GetInt32().ShouldBe(400);
 
-        var configured = await client.CallToolAsync("forward_event", new Dictionary<string, object?>
-        { ["eventName"] = "ping-test", ["method"] = "POST", ["body"] = "ignored" });
+        var configured = await client.CallToolAsync("ping_test_post", new Dictionary<string, object?>());
         configured.IsError.ShouldBe(false);
         configured.StructuredContent!.Value.GetProperty("body").GetString().ShouldBe("{\"message\":\"message-567\"}");
 
-        var invalid = await client.CallToolAsync("forward_event", new Dictionary<string, object?>
-        { ["eventName"] = "ping-request", ["method"] = "POST", ["body"] = "not json" });
-        invalid.IsError.ShouldBe(true);
-        invalid.StructuredContent!.Value.GetProperty("status").GetInt32().ShouldBe(400);
+        var valid = await client.CallToolAsync("ping_request", new Dictionary<string, object?> { ["message"] = "hello" });
+        valid.IsError.ShouldBe(false);
+    }
+
+    [Fact]
+    public async Task InvalidArgumentsCannotTriggerForwarding()
+    {
+        using var factory = new CustomWebApplicationFactory<Program>();
+        var captures = factory.Services.GetRequiredService<RequestCapturingContext>();
+        var (transport, client) = await Connect(factory);
+        await using var ownedTransport = transport;
+        await using var ownedClient = client;
+
+        var missing = await client.CallToolAsync("ping_request", new Dictionary<string, object?>());
+        var wrongType = await client.CallToolAsync("ping_request", new Dictionary<string, object?> { ["message"] = 123 });
+        var extra = await client.CallToolAsync("ping_test_post", new Dictionary<string, object?> { ["Authorization"] = "secret" });
+        missing.IsError.ShouldBe(true);
+        wrongType.IsError.ShouldBe(true);
+        extra.IsError.ShouldBe(true);
+        captures.Requests.ShouldBeEmpty();
     }
 
     [Fact]
@@ -147,8 +162,7 @@ public class McpAcceptanceTests
         var (transport, client) = await Connect(factory);
         await using var ownedTransport = transport;
         await using var ownedClient = client;
-        var result = await client.CallToolAsync("forward_event", new Dictionary<string, object?>
-        { ["eventName"] = "ping-test", ["method"] = "GET" });
+        var result = await client.CallToolAsync("ping_test", new Dictionary<string, object?>());
         result.IsError.ShouldBe(false);
         var content = result.StructuredContent!.Value;
         content.GetProperty("status").GetInt32().ShouldBe(200);
@@ -161,8 +175,8 @@ public class McpAcceptanceTests
     public async Task BinaryResponseIsBase64AndSensitiveHeadersAreOmitted()
     {
         var forwarder = new Mock<IForwardingService>();
-        var rule = new ForwardingRule("GET", "binary", "http://example.test/");
-        forwarder.Setup(x => x.ProcessGetEvent("binary", It.IsAny<string>(), It.IsAny<IDictionary<string, string>>()))
+        var rule = new ForwardingRule("GET", "ping-test", "http://example.test/");
+        forwarder.Setup(x => x.ProcessGetEvent("ping-test", It.IsAny<string>(), It.IsAny<IDictionary<string, string>>()))
             .ReturnsAsync(() =>
             {
                 var response = new HttpResponseMessage(HttpStatusCode.OK)
@@ -185,8 +199,7 @@ public class McpAcceptanceTests
         await using var transport = new HttpClientTransport(new HttpClientTransportOptions
         { Endpoint = new Uri("http://localhost/mcp"), TransportMode = HttpTransportMode.StreamableHttp }, http);
         await using var client = await McpClient.CreateAsync(transport, new McpClientOptions { ProtocolVersion = "2025-11-25" });
-        var result = await client.CallToolAsync("forward_event", new Dictionary<string, object?>
-        { ["eventName"] = "binary", ["method"] = "GET" });
+        var result = await client.CallToolAsync("ping_test", new Dictionary<string, object?>());
         var content = result.StructuredContent!.Value;
         content.GetProperty("encoding").GetString().ShouldBe("base64");
         content.GetProperty("body").GetString().ShouldBe("AP8M");
@@ -243,9 +256,8 @@ public class McpAcceptanceTests
         await using var client = await McpClient.CreateAsync(transport, new McpClientOptions { ProtocolVersion = "2025-11-25" });
         client.SessionId.ShouldBeNull();
         routing.UseSecond = true;
-        (await client.ListToolsAsync()).Count.ShouldBe(1);
-        var result = await client.CallToolAsync("forward_event", new Dictionary<string, object?>
-        { ["eventName"] = "ping-test", ["method"] = "GET" });
+        (await client.ListToolsAsync()).Select(x => x.Name).ShouldContain("ping_test");
+        var result = await client.CallToolAsync("ping_test", new Dictionary<string, object?>());
         result.IsError.ShouldBe(false);
         result.StructuredContent!.Value.GetProperty("status").GetInt32().ShouldBe(200);
     }

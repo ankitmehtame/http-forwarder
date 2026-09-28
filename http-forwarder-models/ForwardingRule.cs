@@ -2,13 +2,14 @@ using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
 namespace http_forwarder_app.Models;
 
 public record class ForwardingRule
 {
-    public ForwardingRule(string method, string @event, string targetUrl, bool hasContent, string? content, bool ignoreSslError, ImmutableDictionary<string, string> headers, ImmutableHashSet<string> ignoredRequestHeaders, ImmutableHashSet<string> tags, RuleRetry retry)
+    public ForwardingRule(string method, string @event, string targetUrl, bool hasContent, string? content, bool ignoreSslError, ImmutableDictionary<string, string> headers, ImmutableHashSet<string> ignoredRequestHeaders, ImmutableHashSet<string> tags, RuleRetry retry, ForwardingRuleMcp? mcp = null)
     {
         Method = method;
         Event = @event;
@@ -20,6 +21,7 @@ public record class ForwardingRule
         IgnoredRequestHeaders = ignoredRequestHeaders;
         Tags = tags;
         Retry = retry;
+        Mcp = mcp;
     }
 
     public ForwardingRule(string method, string @event, string targetUrl) : this(method, @event, targetUrl, true, null, false, ImmutableDictionary<string, string>.Empty, ImmutableHashSet<string>.Empty, ImmutableHashSet<string>.Empty, RuleRetry.DisabledDefault)
@@ -35,7 +37,8 @@ public record class ForwardingRule
         dto.Headers ?? ImmutableDictionary<string, string>.Empty,
         dto.IgnoredRequestHeaders ?? ImmutableHashSet<string>.Empty,
         dto.Tags ?? ImmutableHashSet<string>.Empty,
-        dto.Retry ?? RuleRetry.DisabledDefault)
+        dto.Retry ?? RuleRetry.DisabledDefault,
+        dto.Mcp)
     { }
 
 
@@ -71,6 +74,8 @@ public record class ForwardingRule
 
     public RuleRetry Retry { get; init; }
 
+    public ForwardingRuleMcp? Mcp { get; init; }
+
     public override string ToString()
     {
         __PrettyHeaders ??= new(Headers);
@@ -87,6 +92,8 @@ public record class ForwardingRule
         builder.Replace($", {nameof(Tags)} = System.Collections.Immutable.ImmutableHashSet`1[System.String]", string.Empty);
         builder.Replace($", {nameof(__PrettyTags)} = ", $", {nameof(Tags)} = ");
         builder.Replace($", {nameof(Retry)} = {nameof(RuleRetry)} ", $", {nameof(Retry)} = ");
+        var mcpIndex = builder.ToString().LastIndexOf($", {nameof(Mcp)} = ", StringComparison.Ordinal);
+        if (mcpIndex >= 0) builder.Length = mcpIndex;
 
         return builder.ToString();
     }
@@ -125,7 +132,8 @@ public record class ForwardingRuleDto(string Method,
     ImmutableDictionary<string, string>? Headers = null,
     ImmutableHashSet<string>? IgnoredRequestHeaders = null,
     ImmutableHashSet<string>? Tags = null,
-    RuleRetry? Retry = null)
+    RuleRetry? Retry = null,
+    ForwardingRuleMcp? Mcp = null)
 {
     public ForwardingRule ToForwardingRule()
     {
@@ -143,12 +151,15 @@ public record class ForwardingRuleDto(string Method,
             Headers: rule.Headers,
             IgnoredRequestHeaders: rule.IgnoredRequestHeaders,
             Tags: rule.Tags,
-            Retry: rule.Retry
+            Retry: rule.Retry,
+            Mcp: rule.Mcp
         )
     { }
 
     public ForwardingRuleDto() : this(string.Empty, string.Empty, string.Empty) { }
 }
+
+public sealed record ForwardingRuleMcp(string ToolName, string Description, JsonElement? BodySchema = null);
 
 public static class ForwardingRuleExtensions
 {

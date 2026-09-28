@@ -84,10 +84,31 @@ curl -i https://forwarder.example/mcp \
   -H 'Authorization: Bearer YOUR_MCP_TOKEN' \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"forward_event","arguments":{"eventName":"ping-test","method":"GET"}}}'
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ping_test","arguments":{}}}'
 ```
 
-`forward_event` accepts `eventName`, method `GET`, `POST`, `PUT` or `DELETE`, optional raw UTF-8 `body`, and optional string-to-string `headers`. It does not accept a destination URL. POST and PUT honor configured content and headers; GET and DELETE ignore the supplied body as in the HTTP API. Unsafe transport, credential, proxy and routing headers supplied in tool arguments are dropped; invalid header syntax is rejected. Configured rule credentials still apply. Credentials from the MCP transport are never forwarded.
+MCP exposes one tool per forwarding rule that explicitly opts in with an `mcp` object in `conf/rules.json`. Rules without this metadata remain available to the HTTP API but are not advertised over MCP. Each tool has a stable, unique `toolName` and description. For example, `ping_test` maps to the configured GET rule, while `ping_request` accepts a JSON object with a required string `message`:
+
+```json
+{
+  "method": "POST",
+  "event": "ping-request",
+  "targetUrl": "/api/ping",
+  "hasContent": true,
+  "headers": { "Content-Type": "application/json" },
+  "mcp": {
+    "toolName": "ping_request",
+    "description": "Send a ping message.",
+    "bodySchema": {
+      "type": "object",
+      "properties": { "message": { "type": "string" } },
+      "required": ["message"]
+    }
+  }
+}
+```
+
+Schema properties are tool arguments and are serialized as the request's JSON body; the schema is enforced when the tool is called. Omitting `bodySchema` creates a zero-argument tool. For POST/PUT, set `hasContent: false`; the rule can supply fixed `content` or send an empty body. MCP never accepts a caller-supplied destination URL. Rule changes are loaded at application startup, so restart every instance after editing rules. Keep tool names, schemas and rule behavior equivalent across instances. Configured rule credentials still apply. Credentials from the MCP transport are never forwarded.
 
 The tool returns a JSON text block and `structuredContent` with `kind`, `status`, `body`, `encoding`, `headers`, `truncated`, `bytesRead`, `maxBytes`, `retryId`, and `messageId`. `encoding` is `text` for text, JSON and XML media types (decoded as UTF-8), and `base64` for other types. A body larger than the cap is cut to `maxBytes`; `truncated` records this without changing the forwarding status. Hop-by-hop headers, `Connection`-nominated names, cookies, credentials and `MASKED_HEADERS` are omitted from results. Missing rules and content, publishing failures, and downstream 4xx/5xx responses set `isError`; 2xx and 3xx do not. `kind=retry_accepted` or `kind=published` with status 202 means accepted for later work, not delivery.
 

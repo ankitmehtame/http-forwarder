@@ -26,7 +26,8 @@ builder.Services.AddControllers(options =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddMcpServer()
     .WithHttpTransport(options => options.SessionMode = HttpServerSessionMode.Stateless)
-    .WithTools<ForwardingMcpTools>();
+    .WithListToolsHandler((ctx, _) => ValueTask.FromResult(ForwardingMcpTools.ListTools(ctx.Services!.GetRequiredService<AppState>())))
+    .WithCallToolHandler(ForwardingMcpTools.CallToolAsync);
 var outboundHttpTimeout = builder.Configuration.GetOutboundHttpTimeout();
 builder.Services.ConfigureHttpClientDefaults(httpClientBuilder => httpClientBuilder.ConfigureHttpClient(client => client.Timeout = outboundHttpTimeout));
 builder.Services.AddHttpClient(Constants.HTTP_CLIENT_IGNORE_SSL_ERROR).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
@@ -89,6 +90,7 @@ builder.Services.AddSingleton<AppState, AppState>();
 builder.Services.AddSingleton<ForwardingRulesReader>();
 builder.Services.AddSingleton<IForwardingService, ForwardingService>();
 builder.Services.AddSingleton<ForwardingOrchestrator>();
+builder.Services.AddSingleton<ForwardingMcpToolExecutor>();
 builder.Services.AddSingleton<IPublisherClientFactory, PublisherClientFactory>();
 builder.Services.AddSingleton<IPublishingService, PublishingService>();
 builder.Services.AddSingleton<CloudMessageHandlerFactory>();
@@ -181,6 +183,8 @@ logger.LogDebug("TZ is {TZ}", TimeZoneInfo.Local.DisplayName);
 
 var forwardingRulesReader = app.Services.GetRequiredService<ForwardingRulesReader>();
 forwardingRulesReader.Init();
+if (app.Configuration.GetValue<bool>("MCP_ENABLED"))
+    ForwardingMcpTools.ValidateRules(app.Services.GetRequiredService<AppState>());
 app.Run();
 
 static void AddEnvironmentVariables(IList<string> existingArgsList, IDictionary<string, string> additionalEnvVars)

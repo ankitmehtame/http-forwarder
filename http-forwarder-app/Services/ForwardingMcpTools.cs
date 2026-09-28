@@ -1,21 +1,19 @@
-using System.ComponentModel;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using http_forwarder_app.Core;
+using http_forwarder_app.Models;
+using Json.Schema;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
 namespace http_forwarder_app.Services;
 
-public enum ForwardingMcpMethod { GET, POST, PUT, DELETE }
-
 public sealed record ForwardingMcpResult(
     string Kind, int Status, string? Body, string Encoding, IDictionary<string, string> Headers,
     bool Truncated, int BytesRead, int MaxBytes, Guid? RetryId, string? MessageId);
 
-[McpServerToolType]
-public sealed class ForwardingMcpTools(ForwardingOrchestrator orchestrator, IHttpContextAccessor accessor, IConfiguration configuration)
+public sealed class ForwardingMcpToolExecutor(ForwardingOrchestrator orchestrator, IHttpContextAccessor accessor, IConfiguration configuration)
 {
     private static readonly HashSet<string> Forbidden = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -25,23 +23,10 @@ public sealed class ForwardingMcpTools(ForwardingOrchestrator orchestrator, IHtt
         "Upgrade", "Proxy-Connection", "Set-Cookie", "Cookie"
     };
 
-    [McpServerTool(Name = "forward_event", UseStructuredContent = true, OutputSchemaType = typeof(ForwardingMcpResult))]
-    [Description("Forward a configured event. A 202 result means accepted for retry or remote publication, not delivered.")]
-    public async Task<CallToolResult> ForwardEvent(string eventName, ForwardingMcpMethod method, string? body = null,
-        IDictionary<string, string>? headers = null, CancellationToken cancellationToken = default)
+    public async Task<CallToolResult> InvokeAsync(ForwardingRule rule, string? body, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(eventName) || eventName.Length > 256 || eventName.Contains('/') || eventName.Contains('\\'))
-            return Error("Invalid event name", 400);
         var maxRequestBytes = configuration.GetValue("MCP_MAX_REQUEST_BYTES", 1048576);
         if (Encoding.UTF8.GetByteCount(body ?? "") > maxRequestBytes) return Error("Body exceeds MCP_MAX_REQUEST_BYTES", 400);
-        var safeHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (name, value) in headers ?? new Dictionary<string, string>())
-        {
-            if (string.IsNullOrEmpty(name) || !Regex.IsMatch(name, "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$") || value is null || value.Contains('\r') || value.Contains('\n'))
-                return Error("Invalid forwarding header", 400);
-            if (Forbidden.Contains(name) || name.StartsWith("Mcp-", StringComparison.OrdinalIgnoreCase)) continue;
-            safeHeaders[name] = value;
-        }
         var context = accessor.HttpContext!;
         var hosts = (configuration["MCP_ALLOWED_HOSTS"] ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         if (hosts.Length > 0 && !hosts.Contains(context.Request.Host.Value, StringComparer.OrdinalIgnoreCase)) return Error("Host is not allowed", 400);
@@ -55,19 +40,20 @@ public sealed class ForwardingMcpTools(ForwardingOrchestrator orchestrator, IHtt
         timeout.CancelAfter(configuration.GetOutboundHttpTimeout());
         try
         {
-            using var outcome = await orchestrator.ForwardAsync(method.ToString(), eventName, body, safeHeaders, trustedBase, timeout.Token,
+            var effectiveBody = rule.Mcp?.BodySchema is null && rule.Content is not null ? rule.Content : body;
+            using var outcome = await orchestrator.ForwardAsync(rule.Method, rule.Event, effectiveBody, new Dictionary<string, string>(), trustedBase, timeout.Token,
                 configuration.GetValue("MCP_MAX_RESPONSE_BYTES", 1048576));
             var status = outcome.StatusCode ?? (outcome.Kind == ForwardingOutcomeKind.NoBody ? 400 : 404);
             var maxBytes = configuration.GetValue("MCP_MAX_RESPONSE_BYTES", 1048576);
             var resultHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             string? text = null;
-            string encoding = "text";
-            int count = 0;
-            bool truncated = false;
+            var encoding = "text";
+            var count = 0;
+            var truncated = false;
             if (outcome.Response is { } response)
             {
                 var nominated = response.Headers.Connection.SelectMany(x => x.Split(',', StringSplitOptions.TrimEntries)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                var masked = (configuration.GetMaskedHeadersValue()).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var masked = configuration.GetMaskedHeadersValue().Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
                 foreach (var header in response.Headers.Concat(response.Content.Headers))
                     if (!Forbidden.Contains(header.Key) && !nominated.Contains(header.Key) && !masked.Contains(header.Key))
                         resultHeaders[header.Key] = string.Join(", ", header.Value);
@@ -91,19 +77,12 @@ public sealed class ForwardingMcpTools(ForwardingOrchestrator orchestrator, IHtt
             var kind = outcome.RetryId is not null ? "retry_accepted" : outcome.MessageId is not null ? "published" : outcome.Kind.ToString().ToLowerInvariant();
             return Result(new ForwardingMcpResult(kind, status, text, encoding, resultHeaders, truncated, count, maxBytes, outcome.RetryId, outcome.MessageId), status >= 400);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            return Error("Forwarding timed out", 504);
-        }
-        catch (Exception)
-        {
-            return Error("Forwarding failed", 500);
-        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { return Error("Forwarding timed out", 504); }
+        catch (Exception) { return Error("Forwarding failed", 500); }
     }
 
     private static CallToolResult Error(string message, int status) => Result(new ForwardingMcpResult("error", status, message, "text", new Dictionary<string, string>(), false, 0, 0, null, null), true);
-
-    private static CallToolResult Result(ForwardingMcpResult result, bool isError)
+    internal static CallToolResult Result(ForwardingMcpResult result, bool isError)
     {
         var json = JsonSerializer.Serialize(result, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         return new CallToolResult
@@ -112,5 +91,121 @@ public sealed class ForwardingMcpTools(ForwardingOrchestrator orchestrator, IHtt
             StructuredContent = JsonSerializer.SerializeToElement(result, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
             Content = [new TextContentBlock { Text = json }]
         };
+    }
+}
+
+public static class ForwardingMcpTools
+{
+    private static readonly JsonElement EmptyInputSchema = JsonSerializer.SerializeToElement(new
+    {
+        type = "object",
+        properties = new { },
+        additionalProperties = false
+    });
+    private static readonly JsonElement ResultSchema = JsonDocument.Parse("""
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "type": "string" },
+            "status": { "type": "integer" },
+            "body": { "type": ["string", "null"] },
+            "encoding": { "type": "string", "enum": ["text", "base64"] },
+            "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+            "truncated": { "type": "boolean" },
+            "bytesRead": { "type": "integer" },
+            "maxBytes": { "type": "integer" },
+            "retryId": { "type": ["string", "null"] },
+            "messageId": { "type": ["string", "null"] }
+          },
+          "required": ["kind", "status", "body", "encoding", "headers", "truncated", "bytesRead", "maxBytes", "retryId", "messageId"]
+        }
+        """).RootElement.Clone();
+
+    public static void ValidateRules(AppState state)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var rule in state.Rules.Concat(state.RemoteRules).Where(r => r.Mcp is not null))
+        {
+            var metadata = rule.Mcp!;
+            if (string.IsNullOrWhiteSpace(metadata.ToolName) || !Regex.IsMatch(metadata.ToolName, "^[a-zA-Z0-9_-]{1,64}$"))
+                throw new InvalidOperationException($"Invalid MCP tool name for event '{rule.Event}'");
+            if (string.IsNullOrWhiteSpace(metadata.Description))
+                throw new InvalidOperationException($"MCP description is required for tool '{metadata.ToolName}'");
+            if (!names.Add(metadata.ToolName))
+                throw new InvalidOperationException($"Duplicate MCP tool name '{metadata.ToolName}'");
+            if (rule.Method is not ("POST" or "PUT" or "GET" or "DELETE"))
+                throw new InvalidOperationException($"Unsupported MCP method for tool '{metadata.ToolName}'");
+            var selectedRule = state.Rules.FirstOrDefault(r => r.Method == rule.Method && string.Equals(r.Event, rule.Event, StringComparison.OrdinalIgnoreCase))
+                ?? state.RemoteRules.FirstOrDefault(r => r.Method == rule.Method && string.Equals(r.Event, rule.Event, StringComparison.OrdinalIgnoreCase));
+            if (!ReferenceEquals(rule, selectedRule))
+                throw new InvalidOperationException($"MCP tool '{metadata.ToolName}' does not match the selected forwarding rule for {rule.Method} {rule.Event}");
+            if (rule.Method is "GET" or "DELETE")
+            {
+                if (metadata.BodySchema is not null)
+                    throw new InvalidOperationException($"Tool '{metadata.ToolName}' cannot define bodySchema for {rule.Method}");
+                if (state.RemoteRules.Contains(rule))
+                    throw new InvalidOperationException($"Remote {rule.Method} rule '{metadata.ToolName}' cannot be exposed through MCP");
+            }
+            else if (metadata.BodySchema is null && rule.HasContent)
+                throw new InvalidOperationException($"POST/PUT tool '{metadata.ToolName}' without bodySchema requires hasContent=false");
+            if (metadata.BodySchema is { } schema)
+            {
+                if (rule.Method is not ("POST" or "PUT") || !rule.HasContent || rule.Content is not null)
+                    throw new InvalidOperationException($"Tool '{metadata.ToolName}' bodySchema requires a POST/PUT rule without fixed content");
+                if (schema.ValueKind != JsonValueKind.Object ||
+                    !schema.TryGetProperty("type", out var type) || type.ValueKind != JsonValueKind.String || type.GetString() != "object")
+                    throw new InvalidOperationException($"Tool '{metadata.ToolName}' bodySchema must declare top-level type object");
+                try
+                {
+                    var jsonSchema = JsonSchema.FromText(schema.GetRawText());
+                    _ = jsonSchema.Evaluate(JsonSerializer.SerializeToElement(new { })).IsValid;
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Invalid bodySchema for MCP tool '{metadata.ToolName}'", ex);
+                }
+            }
+        }
+    }
+
+    public static ListToolsResult ListTools(AppState state) => new()
+    {
+        Tools = GetRules(state).Select(rule =>
+        {
+            var schema = rule.Mcp!.BodySchema?.Clone() ?? EmptyInputSchema;
+            return new Tool { Name = rule.Mcp.ToolName, Description = rule.Mcp.Description, InputSchema = schema, OutputSchema = ResultSchema };
+        }).ToList()
+    };
+
+    public static async ValueTask<CallToolResult> CallToolAsync(RequestContext<CallToolRequestParams> context, CancellationToken cancellationToken)
+    {
+        var state = context.Services!.GetRequiredService<AppState>();
+        var rule = GetRules(state).FirstOrDefault(x => x.Mcp!.ToolName == context.Params.Name);
+        if (rule is null) return Error($"Unknown tool '{context.Params.Name}'", 404);
+        var args = context.Params?.Arguments ?? new Dictionary<string, JsonElement>();
+        string? body = null;
+        if (rule.Mcp!.BodySchema is { } schema)
+        {
+            var validationSchema = JsonSchema.FromText(schema.GetRawText());
+            var value = JsonSerializer.SerializeToElement(args);
+            var errors = validationSchema.Evaluate(value);
+            if (!errors.IsValid) return Error("Arguments do not match the configured body schema", 400);
+            body = value.GetRawText();
+        }
+        else if (args.Count != 0) return Error("This tool does not accept arguments", 400);
+
+        var tools = context.Services!.GetRequiredService<ForwardingMcpToolExecutor>();
+        return await tools.InvokeAsync(rule, body, cancellationToken);
+    }
+
+    private static ForwardingRule[] GetRules(AppState state) => state.Rules
+        .Concat(state.RemoteRules.Where(r => r.Method is "POST" or "PUT"))
+        .Where(r => r.Mcp is not null)
+        .OrderBy(r => r.Mcp!.ToolName, StringComparer.Ordinal).ToArray();
+
+    private static CallToolResult Error(string message, int status)
+    {
+        var result = new ForwardingMcpResult("error", status, message, "text", new Dictionary<string, string>(), false, 0, 0, null, null);
+        return ForwardingMcpToolExecutor.Result(result, true);
     }
 }

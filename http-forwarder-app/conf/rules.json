@@ -32,6 +32,10 @@
         "method": "GET",
         "event": "ping-test",
         "targetUrl": "/api/ping",
+        "mcp": {
+            "toolName": "ping_test",
+            "description": "Check the local ping endpoint."
+        },
         "tags": [
             "local",
             "home",
@@ -42,6 +46,10 @@
         "method": "POST",
         "event": "ping-test",
         "targetUrl": "/api/ping",
+        "mcp": {
+            "toolName": "ping_test_post",
+            "description": "Send the configured ping message."
+        },
         "content": "{\"message\": \"message-567\"}",
         "headers": {
             "Content-Type": "application/json"
@@ -60,6 +68,22 @@
         "method": "POST",
         "event": "ping-request",
         "targetUrl": "/api/ping",
+        "mcp": {
+            "toolName": "ping_request",
+            "description": "Send a ping message.",
+            "bodySchema": {
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "description": "Message to send.",
+                        "examples": ["hello"]
+                    }
+                },
+                "required": ["message"],
+                "additionalProperties": false
+            }
+        },
         "hasContent": true,
         "headers": {
             "Content-Type": "application/json"
@@ -77,6 +101,10 @@
         "method": "POST",
         "event": "ping-fail",
         "targetUrl": "/api/ping",
+        "mcp": {
+            "toolName": "ping_fail",
+            "description": "Exercise retry handling with a fixed failure message."
+        },
         "content": "{\"message\": \"FAIL\"}",
         "headers": {
             "Content-Type": "application/json"
@@ -96,6 +124,18 @@
         "method": "POST",
         "event": "ping-retry",
         "targetUrl": "/api/ping",
+        "mcp": {
+            "toolName": "ping_retry",
+            "description": "Send a retryable ping message.",
+            "bodySchema": {
+                "type": "object",
+                "properties": {
+                    "message": { "type": "string", "description": "Message to retry if forwarding fails." }
+                },
+                "required": ["message"],
+                "additionalProperties": false
+            }
+        },
         "hasContent": true,
         "retry": {
             "allow": true,
@@ -111,6 +151,10 @@
         "method": "POST",
         "event": "cloud-test",
         "targetUrl": "/api/cloud",
+        "mcp": {
+            "toolName": "cloud_test",
+            "description": "Publish the configured cloud test message."
+        },
         "content": "{\"message\": \"cloud-message-567\"}",
         "headers": {
             "Content-Type": "application/json"
