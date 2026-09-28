@@ -8,6 +8,27 @@ namespace http_forwarder_unit_tests;
 public class ConfigurationExtensionsTests
 {
     [Fact]
+    public void McpEnabledWithoutCredentialsOrTrustedHostFailsStartup()
+    {
+        var config = BuildConfiguration(new Dictionary<string, string?>
+        { ["LOCATION_TAG"] = "local", ["MCP_ENABLED"] = "true" });
+        var error = Should.Throw<InvalidOperationException>(() => config.ValidateStartupConfiguration());
+        error.Message.ShouldContain("MCP_ALLOWED_API_KEYS");
+        error.Message.ShouldContain("MCP_ALLOWED_HOSTS");
+    }
+
+    [Fact]
+    public void McpEnabledWithInvalidLimitsFailsStartup()
+    {
+        var config = BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["LOCATION_TAG"] = "local", ["MCP_ENABLED"] = "true", ["MCP_ALLOWED_API_KEYS"] = "test",
+            ["MCP_ALLOWED_HOSTS"] = "localhost", ["MCP_MAX_RESPONSE_BYTES"] = "0"
+        });
+        Should.Throw<InvalidOperationException>(() => config.ValidateStartupConfiguration())
+            .Message.ShouldContain("MCP_MAX_RESPONSE_BYTES");
+    }
+    [Fact]
     public void GetOutboundHttpTimeout_WithoutConfiguration_ReturnsDefault()
     {
         // Arrange

@@ -18,6 +18,22 @@ public static class ConfigurationExtensions
         ValidatePositiveNumber(configuration, Constants.REGEX_MATCH_TIMEOUT_MILLISECONDS, errors);
         ValidatePositiveInteger(configuration, Constants.RATE_LIMIT_PER_WINDOW, errors);
         ValidatePositiveNumber(configuration, Constants.RATE_LIMIT_WINDOW_SECONDS, errors);
+        if (configuration.GetValue<bool>("MCP_ENABLED"))
+        {
+            if (string.IsNullOrWhiteSpace(configuration["MCP_ALLOWED_API_KEYS"]) ||
+                !(configuration["MCP_ALLOWED_API_KEYS"] ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Any())
+                errors.Add("MCP_ALLOWED_API_KEYS is required when MCP_ENABLED=true");
+            foreach (var name in new[] { "MCP_MAX_REQUEST_BYTES", "MCP_MAX_RESPONSE_BYTES", "MCP_RATE_LIMIT_PER_WINDOW", "MCP_RATE_LIMIT_WINDOW_SECONDS" })
+                ValidatePositiveInteger(configuration, name, errors);
+            foreach (var name in new[] { "MCP_MAX_REQUEST_BYTES", "MCP_MAX_RESPONSE_BYTES" })
+                if (int.TryParse(configuration[name], out var size) && size > 16 * 1024 * 1024)
+                    errors.Add($"{name} must be at most 16777216 bytes");
+            var baseUrl = configuration["MCP_BASE_URL"];
+            if (!string.IsNullOrWhiteSpace(baseUrl) && (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var url) || url.Scheme is not ("http" or "https") || url.UserInfo.Length != 0))
+                errors.Add("MCP_BASE_URL must be an absolute HTTP(S) URL without credentials");
+            if (string.IsNullOrWhiteSpace(baseUrl) && string.IsNullOrWhiteSpace(configuration["MCP_ALLOWED_HOSTS"]))
+                errors.Add("MCP_ALLOWED_HOSTS is required when MCP_BASE_URL is absent");
+        }
 
         if (configuration.IsPublisherEnabled())
         {

@@ -19,19 +19,13 @@ namespace http_forwarder_app.Controllers
     [Route("forward")]
     [Route("api/forward")]
     public class ForwardingController(
-        IForwardingService forwardingService,
-        RemoteRulePublishingService remoteRulePublishingService,
-        IFailedRequestStorage failedRequestStorage,
+        ForwardingOrchestrator orchestrator,
         IConfiguration configuration,
-        ISystemClock clock,
         ILogger<ForwardingController> logger) : ControllerBase
     {
-        private readonly IForwardingService _forwardingService = forwardingService;
-        private readonly IFailedRequestStorage _failedRequestStorage = failedRequestStorage;
+        private readonly ForwardingOrchestrator _orchestrator = orchestrator;
         private readonly IConfiguration _configuration = configuration;
         private readonly ILogger<ForwardingController> _logger = logger;
-        private readonly RemoteRulePublishingService _remoteRulePublishingService = remoteRulePublishingService;
-        private readonly ISystemClock _clock = clock;
 
         [HttpGet]
         public object Get()
@@ -43,24 +37,7 @@ namespace http_forwarder_app.Controllers
         [Route("{eventName}")]
         public async Task Get(string eventName)
         {
-            string method = Request.Method;
-            var result = await _forwardingService.ProcessGetEvent(
-                eventName: eventName,
-                requestHostUrl: GetHostUrl(Request),
-                requestHeaders: Request.Headers.GetHeaders());
-            await result.Match(
-                async ruleResult => await HttpContext.CopyHttpResponse(ruleResult.Response),
-                async noRuleFound =>
-                {
-                    Response.StatusCode = StatusCodes.Status404NotFound;
-                    await Response.WriteAsync($"Rule not found for event {eventName} and method {method}");
-                },
-                async remoteRuleFound =>
-                {
-                    Response.StatusCode = StatusCodes.Status404NotFound;
-                    await Response.WriteAsync($"Rule not found for event {eventName}, method {method} and location {_configuration.GetLocationTag()}");
-                }
-            );
+            await Forward(eventName, null);
         }
 
         /// <summary>
@@ -71,41 +48,7 @@ namespace http_forwarder_app.Controllers
         [HttpPost("{eventName}")]
         public async Task Post(string eventName, [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] object? body = null)
         {
-            string method = Request.Method;
-            Request.EnableBuffering();
-            var requestContent = await ReadRequestBody(Request);
-            var requestHeaders = Request.Headers.GetHeaders();
-            var result = await _forwardingService.ProcessPostEvent(
-                eventName: eventName,
-                requestHostUrl: GetHostUrl(Request),
-                requestContent: requestContent,
-                requestHeaders: requestHeaders);
-
-            await result.Match(
-                async ruleResult =>
-                {
-                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.Retry.Allow)
-                    {
-                        await HandleFailedRequest(ruleResult.Rule, requestContent, requestHeaders, await ruleResult.Response.Content.ReadAsStringAsync());
-                        return;
-                    }
-                    await HttpContext.CopyHttpResponse(ruleResult.Response);
-                },
-                async noRuleFound =>
-                {
-                    Response.StatusCode = StatusCodes.Status404NotFound;
-                    await Response.WriteAsync($"Rule not found for event {eventName} and method {method}");
-                },
-                async noBodyFound =>
-                {
-                    Response.StatusCode = StatusCodes.Status400BadRequest;
-                    await Response.WriteAsync($"Body not found for event {eventName} and method {method}");
-                },
-                async remoteRuleFound =>
-                {
-                    await HandleRemoteRule(remoteRuleFound.RemoteRule, requestContent, requestHeaders);
-                }
-            );
+            await Forward(eventName, await ReadRequestBody(Request));
         }
 
         /// <summary>
@@ -114,41 +57,7 @@ namespace http_forwarder_app.Controllers
         [HttpPut("{eventName}")]
         public async Task Put(string eventName, [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] object? body = null)
         {
-            string method = Request.Method;
-            Request.EnableBuffering();
-            var requestContent = await ReadRequestBody(Request);
-            var requestHeaders = Request.Headers.GetHeaders();
-            var result = await _forwardingService.ProcessPutEvent(
-                eventName: eventName,
-                requestHostUrl: GetHostUrl(Request),
-                requestContent: requestContent,
-                requestHeaders: requestHeaders);
-
-            await result.Match(
-                async ruleResult =>
-                {
-                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.Retry.Allow)
-                    {
-                        await HandleFailedRequest(ruleResult.Rule, requestContent, requestHeaders, await ruleResult.Response.Content.ReadAsStringAsync());
-                        return;
-                    }
-                    await HttpContext.CopyHttpResponse(ruleResult.Response);
-                },
-                async noRuleFound =>
-                {
-                    Response.StatusCode = StatusCodes.Status404NotFound;
-                    await Response.WriteAsync($"Rule not found for event {eventName} and method {method}");
-                },
-                async noBodyFound =>
-                {
-                    Response.StatusCode = StatusCodes.Status400BadRequest;
-                    await Response.WriteAsync($"Body not found for event {eventName} and method {method}");
-                },
-                async remoteRuleFound =>
-                {
-                    await HandleRemoteRule(remoteRuleFound.RemoteRule, requestContent, requestHeaders);
-                }
-            );
+            await Forward(eventName, await ReadRequestBody(Request));
         }
 
         /// <summary>
@@ -157,85 +66,36 @@ namespace http_forwarder_app.Controllers
         [HttpDelete("{eventName}")]
         public async Task Delete(string eventName, [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] object? body = null)
         {
-            string method = Request.Method;
-            Request.EnableBuffering();
-            var requestContent = await ReadRequestBody(Request);
-            var requestHeaders = Request.Headers.GetHeaders();
-            var result = await _forwardingService.ProcessDeleteEvent(
-                eventName: eventName,
-                requestHostUrl: GetHostUrl(Request),
-                requestHeaders: requestHeaders);
-            await result.Match(
-                async ruleResult =>
-                {
-                    if (ruleResult.Response.IsServerError() && ruleResult.Rule.Retry.Allow)
-                    {
-                        await HandleFailedRequest(ruleResult.Rule, requestContent, requestHeaders, await ruleResult.Response.Content.ReadAsStringAsync());
-                        return;
-                    }
-                    await HttpContext.CopyHttpResponse(ruleResult.Response);
-                },
-                async noRuleFound =>
-                {
-                    Response.StatusCode = StatusCodes.Status404NotFound;
-                    await Response.WriteAsync($"Rule not found for event {eventName} and method {method}");
-                },
-                async remoteRuleFound =>
-                {
-                    Response.StatusCode = StatusCodes.Status404NotFound;
-                    await Response.WriteAsync($"Rule not found for event {eventName}, method {method} and location {_configuration.GetLocationTag()}");
-                }
-            );
+            await Forward(eventName, await ReadRequestBody(Request));
         }
 
-        private async Task HandleRemoteRule(ForwardingRule remoteRule, string requestContent, ImmutableSortedDictionary<string, string> requestHeaders)
+        private async Task Forward(string eventName, string? body)
         {
-            if (!_configuration.IsPublisherEnabled())
+            var method = Request.Method;
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(HttpContext.RequestAborted);
+            timeout.CancelAfter(_configuration.GetOutboundHttpTimeout());
+            using var outcome = await _orchestrator.ForwardAsync(method, eventName, body,
+                Request.Headers.GetHeaders(), GetHostUrl(Request), timeout.Token);
+            if (outcome.Response is not null)
             {
-                _logger.LogWarning("Request can not be processed by this system - {rule}", remoteRule.ToMinimal());
-                Response.StatusCode = StatusCodes.Status406NotAcceptable;
-                await Response.WriteAsync("Request can not be processed by this system");
+                if (outcome.RetryId is not null || outcome.Kind == ForwardingOutcomeKind.RemoteRule)
+                {
+                    Response.StatusCode = outcome.StatusCode!.Value;
+                    await Response.WriteAsync(await outcome.Response.Content.ReadAsStringAsync(timeout.Token), timeout.Token);
+                }
+                else
+                {
+                    await ResponseUtils.CopyHttpResponse(Response, outcome.Response, timeout.Token);
+                }
                 return;
             }
-            ForwardingRequest forwardingRequest = new(Method: remoteRule.Method, Event: remoteRule.Event, Content: requestContent, RequestHeaders: requestHeaders);
-            var publishResult = await _remoteRulePublishingService.Publish(forwardingRequest, remoteRule);
-            publishResult.Switch(
-                success =>
-                {
-                    Response.StatusCode = StatusCodes.Status202Accepted;
-                    Response.WriteAsync($"Request will be processed by another system, published successfully with message Id {success.MessageId}");
-                },
-                failure =>
-                {
-                    Response.StatusCode = StatusCodes.Status500InternalServerError;
-                    Response.WriteAsync($"Request could not be published to be processed by another system - {failure.ErrorMessage}");
-                }
-            );
-        }
-
-        private async Task HandleFailedRequest(ForwardingRule rule, string? content, ImmutableSortedDictionary<string, string> requestHeaders, string error)
-        {
-            var creationTime = _clock.UtcNow;
-            var failedRequest = new FailedRequest(
-                Id: Guid.NewGuid(),
-                Rule: rule.ToMinimal(),
-                RequestBody: content ?? string.Empty,
-                RequestHostUrl: GetHostUrl(Request),
-                RequestHeaders: requestHeaders,
-                FirstAttempt: creationTime,
-                LastAttempt: creationTime,
-                AttemptCount: 1,
-                NextAttempt: creationTime.Add(Constants.RetryIntervalMin),
-                LastError: error
-            );
-
-            _logger.LogInformation("Adding request {requestId} with event {eventName} to storage to be executed at {attemptTime}",
-                failedRequest.Id,
-                failedRequest.Rule.Event,
-                failedRequest.NextAttempt);
-            _failedRequestStorage.Store(failedRequest);
-            Response.StatusCode = StatusCodes.Status202Accepted;
-            await Response.WriteAsync(string.Format(CultureInfo.InvariantCulture, "Request {0} accepted for retry - {1} at {2}", failedRequest.Rule.Event, failedRequest.Id, failedRequest.FirstAttempt.ToLocalTime()));
+            Response.StatusCode = outcome.Kind == ForwardingOutcomeKind.NoBody ? StatusCodes.Status400BadRequest : StatusCodes.Status404NotFound;
+            var message = outcome.Kind == ForwardingOutcomeKind.NoBody
+                ? $"Body not found for event {eventName} and method {method}"
+                : outcome.Kind == ForwardingOutcomeKind.RemoteRule && method is "GET" or "DELETE"
+                    ? $"Rule not found for event {eventName}, method {method} and location {_configuration.GetLocationTag()}"
+                    : $"Rule not found for event {eventName} and method {method}";
+            await Response.WriteAsync(message);
         }
 
         private static string GetHostUrl(HttpRequest request)
