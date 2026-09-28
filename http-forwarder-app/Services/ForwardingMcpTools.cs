@@ -13,6 +13,15 @@ public sealed record ForwardingMcpResult(
     string Kind, int Status, string? Body, string Encoding, IDictionary<string, string> Headers,
     bool Truncated, int BytesRead, int MaxBytes, Guid? RetryId, string? MessageId);
 
+public sealed class ForwardingMcpSchemaCache
+{
+    private IReadOnlyDictionary<string, JsonSchema> _schemas = new Dictionary<string, JsonSchema>();
+
+    public void Initialize(AppState state) => _schemas = ForwardingMcpTools.ValidateRules(state);
+
+    public JsonSchema Get(string toolName) => _schemas[toolName];
+}
+
 public sealed class ForwardingMcpToolExecutor(ForwardingOrchestrator orchestrator, IHttpContextAccessor accessor, IConfiguration configuration)
 {
     private static readonly HashSet<string> Forbidden = new(StringComparer.OrdinalIgnoreCase)
@@ -121,9 +130,10 @@ public static class ForwardingMcpTools
         }
         """).RootElement.Clone();
 
-    public static void ValidateRules(AppState state)
+    public static IReadOnlyDictionary<string, JsonSchema> ValidateRules(AppState state)
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
+        var schemas = new Dictionary<string, JsonSchema>(StringComparer.Ordinal);
         foreach (var rule in state.Rules.Concat(state.RemoteRules).Where(r => r.Mcp is not null))
         {
             var metadata = rule.Mcp!;
@@ -159,6 +169,7 @@ public static class ForwardingMcpTools
                 {
                     var jsonSchema = JsonSchema.FromText(schema.GetRawText());
                     _ = jsonSchema.Evaluate(JsonSerializer.SerializeToElement(new { })).IsValid;
+                    schemas.Add(metadata.ToolName, jsonSchema);
                 }
                 catch (Exception ex)
                 {
@@ -166,6 +177,7 @@ public static class ForwardingMcpTools
                 }
             }
         }
+        return schemas;
     }
 
     public static ListToolsResult ListTools(AppState state) => new()
@@ -173,7 +185,7 @@ public static class ForwardingMcpTools
         Tools = GetRules(state).Select(rule =>
         {
             var schema = rule.BodySchema?.Clone() ?? EmptyInputSchema;
-            return new Tool { Name = rule.Mcp.ToolName, Description = rule.Mcp.Description, InputSchema = schema, OutputSchema = ResultSchema };
+            return new Tool { Name = rule.Mcp!.ToolName, Description = rule.Mcp.Description, InputSchema = schema, OutputSchema = ResultSchema };
         }).ToList()
     };
 
@@ -184,9 +196,9 @@ public static class ForwardingMcpTools
         if (rule is null) return Error($"Unknown tool '{context.Params.Name}'", 404);
         var args = context.Params?.Arguments ?? new Dictionary<string, JsonElement>();
         string? body = null;
-        if (rule.BodySchema is { } schema)
+        if (rule.BodySchema is not null)
         {
-            var validationSchema = JsonSchema.FromText(schema.GetRawText());
+            var validationSchema = context.Services!.GetRequiredService<ForwardingMcpSchemaCache>().Get(rule.Mcp!.ToolName);
             var value = JsonSerializer.SerializeToElement(args);
             var errors = validationSchema.Evaluate(value);
             if (!errors.IsValid) return Error("Arguments do not match the configured body schema", 400);

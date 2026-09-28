@@ -91,6 +91,7 @@ builder.Services.AddSingleton<ForwardingRulesReader>();
 builder.Services.AddSingleton<IForwardingService, ForwardingService>();
 builder.Services.AddSingleton<ForwardingOrchestrator>();
 builder.Services.AddSingleton<ForwardingMcpToolExecutor>();
+builder.Services.AddSingleton<ForwardingMcpSchemaCache>();
 builder.Services.AddSingleton<IPublisherClientFactory, PublisherClientFactory>();
 builder.Services.AddSingleton<IPublishingService, PublishingService>();
 builder.Services.AddSingleton<CloudMessageHandlerFactory>();
@@ -184,7 +185,7 @@ logger.LogDebug("TZ is {TZ}", TimeZoneInfo.Local.DisplayName);
 var forwardingRulesReader = app.Services.GetRequiredService<ForwardingRulesReader>();
 forwardingRulesReader.Init();
 if (app.Configuration.GetValue<bool>("MCP_ENABLED"))
-    ForwardingMcpTools.ValidateRules(app.Services.GetRequiredService<AppState>());
+    app.Services.GetRequiredService<ForwardingMcpSchemaCache>().Initialize(app.Services.GetRequiredService<AppState>());
 app.Run();
 
 static void AddEnvironmentVariables(IList<string> existingArgsList, IDictionary<string, string> additionalEnvVars)

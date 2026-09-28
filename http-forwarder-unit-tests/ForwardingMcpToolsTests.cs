@@ -28,6 +28,29 @@ public class ForwardingMcpToolsTests
     }
 
     [Fact]
+    public void SchemaCacheKeepsEachInstancesRulesSeparate()
+    {
+        static AppState CreateState(string requiredProperty) => new()
+        {
+            Rules = [new ForwardingRule("POST", "event", "/target")
+            {
+                Mcp = new("send_event", "Send event"),
+                BodySchema = JsonDocument.Parse($$"""{"type":"object","required":["{{requiredProperty}}"]}""").RootElement.Clone()
+            }]
+        };
+
+        var first = new ForwardingMcpSchemaCache();
+        first.Initialize(CreateState("first"));
+        var second = new ForwardingMcpSchemaCache();
+        second.Initialize(CreateState("second"));
+
+        var firstSchema = first.Get("send_event");
+        ReferenceEquals(firstSchema, first.Get("send_event")).ShouldBeTrue();
+        firstSchema.Evaluate(JsonSerializer.SerializeToElement(new { first = "value" })).IsValid.ShouldBeTrue();
+        second.Get("send_event").Evaluate(JsonSerializer.SerializeToElement(new { first = "value" })).IsValid.ShouldBeFalse();
+    }
+
+    [Fact]
     public void RuleSchemaWithoutMcpIsPreservedButNotAdvertised()
     {
         var schema = JsonDocument.Parse("{\"type\":\"object\"}").RootElement.Clone();
