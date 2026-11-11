@@ -38,7 +38,7 @@ public record class ForwardingRule
         dto.Content,
         dto.IgnoreSslError ?? false,
         dto.Headers ?? ImmutableDictionary<string, string>.Empty,
-        (dto.IgnoredRequestHeaders ?? ImmutableHashSet<string>.Empty).Union(dto.IgnoreRequestHeaders ?? ImmutableHashSet<string>.Empty),
+        dto.IgnoredRequestHeaders ?? ImmutableHashSet<string>.Empty,
         dto.Tags ?? ImmutableHashSet<string>.Empty,
         dto.Retry ?? RuleRetry.DisabledDefault,
         dto.Mcp,
@@ -142,10 +142,6 @@ public record class ForwardingRuleDto(string Method,
     ForwardingRuleMcp? Mcp = null,
     JsonElement? BodySchema = null)
 {
-    [JsonPropertyName("ignoreRequestHeaders")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ImmutableHashSet<string>? IgnoreRequestHeaders { get; init; }
-
     public ForwardingRule ToForwardingRule()
     {
         return new(this);

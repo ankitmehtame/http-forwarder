@@ -19,7 +19,7 @@ public class ForwardingRulesReaderTests
             },
             {
                 "method": "PUT", "event": "remote-event", "targetUrl": "http://example.com",
-                "tags": ["remote"], "ignoreRequestHeaders": ["[", "*"]
+                "tags": ["remote"], "ignoredRequestHeaders": ["[", "*"]
             }
         ]
         """;
