@@ -175,7 +175,9 @@ Rules are stored in `conf/rules.json`. Each rule defines how to forward a reques
     }
 ]
 ```
-`ignoredRequestHeaders` filters caller headers by name or regex, such as `"X-.*"`. Use `["*"]` to drop every caller header and keep only the rule's configured `headers`. Only the exact string `"*"` has this special meaning; other entries remain regexes, not globs. Invalid regexes log a warning when rules load but do not prevent startup.
+`ignoredRequestHeaders` filters caller headers by exact name or regex, such as `"X-.*"`. Matching is case-sensitive, and a regex matches anywhere in the header name unless anchored (`"^Authorization$"`). Use `["*"]` to drop every caller header and keep only the rule's configured `headers`. Only the exact string `"*"` has this special meaning; other entries remain regexes, not globs. Invalid regexes log a warning when rules load but do not prevent startup.
+
+With `["*"]` the caller's `Content-Type` is dropped too, and the forwarded body is sent as `application/json` unless the rule's `headers` set a `Content-Type`.
 
 Credit to https://httpbin.org for offering an internet based service to test REST functions.
 

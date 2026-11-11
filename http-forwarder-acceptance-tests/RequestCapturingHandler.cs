@@ -22,7 +22,7 @@ namespace http_forwarder_acceptance_tests
                 var body = await request.Content.ReadAsStringAsync(cancellationToken);
                 _context.Requests.Enqueue(new(request.RequestUri!.ToString(), body)
                 {
-                    RequestHeaders = request.Headers.ToDictionary(header => header.Key, header => string.Join(",", header.Value), StringComparer.OrdinalIgnoreCase)
+                    RequestHeaders = request.Headers.Concat(request.Content.Headers).ToDictionary(header => header.Key, header => string.Join(",", header.Value), StringComparer.OrdinalIgnoreCase)
                 });
             }
 
