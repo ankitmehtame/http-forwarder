@@ -9,6 +9,8 @@ namespace http_forwarder_app.Models;
 
 public record class ForwardingRule
 {
+    public const string IgnoreAllRequestHeaders = "*";
+
     public ForwardingRule(string method, string @event, string targetUrl, bool hasContent, string? content, bool ignoreSslError, ImmutableDictionary<string, string> headers, ImmutableHashSet<string> ignoredRequestHeaders, ImmutableHashSet<string> tags, RuleRetry retry, ForwardingRuleMcp? mcp = null, JsonElement? bodySchema = null)
     {
         Method = method;
@@ -36,7 +38,7 @@ public record class ForwardingRule
         dto.Content,
         dto.IgnoreSslError ?? false,
         dto.Headers ?? ImmutableDictionary<string, string>.Empty,
-        dto.IgnoredRequestHeaders ?? ImmutableHashSet<string>.Empty,
+        (dto.IgnoredRequestHeaders ?? ImmutableHashSet<string>.Empty).Union(dto.IgnoreRequestHeaders ?? ImmutableHashSet<string>.Empty),
         dto.Tags ?? ImmutableHashSet<string>.Empty,
         dto.Retry ?? RuleRetry.DisabledDefault,
         dto.Mcp,
@@ -140,6 +142,10 @@ public record class ForwardingRuleDto(string Method,
     ForwardingRuleMcp? Mcp = null,
     JsonElement? BodySchema = null)
 {
+    [JsonPropertyName("ignoreRequestHeaders")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ImmutableHashSet<string>? IgnoreRequestHeaders { get; init; }
+
     public ForwardingRule ToForwardingRule()
     {
         return new(this);
@@ -186,8 +192,7 @@ public static class ForwardingRuleExtensions
 
     public static ImmutableDictionary<string, string> MergeHeaders(this ForwardingRule forwardingRule, IDictionary<string, string> requestHeaders, ILogger? logger = null)
     {
-        if (requestHeaders.Count == 0) return forwardingRule.Headers;
-        if (forwardingRule.Headers.Count == 0) return requestHeaders.ToImmutableDictionary();
+        if (requestHeaders.Count == 0 || forwardingRule.IgnoredRequestHeaders.Contains(ForwardingRule.IgnoreAllRequestHeaders)) return forwardingRule.Headers;
 
         bool IsSafeRegexMatchAny(string input, IEnumerable<string> patterns)
         {

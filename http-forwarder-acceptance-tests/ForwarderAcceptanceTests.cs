@@ -42,6 +42,36 @@ public class ForwarderAcceptanceTests(CustomWebApplicationFactory<Program> facto
     }
 
     [Fact]
+    public async Task IgnoringAllCallerHeadersPreservesInjectedAuthorization()
+    {
+        using var factory = new CustomWebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+        var state = factory.Services.GetRequiredService<AppState>();
+        state.Rules = [.. state.Rules, new ForwardingRule("POST", "injected-auth", "/api/ping")
+        {
+            Headers = new Dictionary<string, string>
+            {
+                { "Authorization", "Bearer injected-token" },
+                { "Content-Type", "application/json" }
+            }.ToImmutableDictionary(),
+            IgnoredRequestHeaders = new[] { "*" }.ToImmutableHashSet()
+        }];
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/forward/injected-auth")
+        {
+            Content = new StringContent("""{"message":"hello"}""", System.Text.Encoding.UTF8, "application/json")
+        };
+        request.Headers.Add("Authorization", "Bearer caller-token");
+        request.Headers.Add("X-Caller", "must-not-forward");
+
+        using var response = await client.SendAsync(request);
+
+        response.EnsureSuccessStatusCode();
+        var captured = factory.Services.GetRequiredService<RequestCapturingContext>().Requests.ShouldHaveSingleItem();
+        captured.RequestHeaders.ShouldContainKeyAndValue("Authorization", "Bearer injected-token");
+        captured.RequestHeaders.ShouldNotContainKey("X-Caller");
+    }
+
+    [Fact]
     public async Task PostCloudShouldPublish()
     {
         var stubPublisherClient = (StubPublisherClientFactory)_factory.Services.GetRequiredService<IPublisherClientFactory>();
