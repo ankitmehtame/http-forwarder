@@ -7,5 +7,8 @@ namespace http_forwarder_acceptance_tests
         public ConcurrentQueue<RequestCapturingData> Requests { get; } = new();
     }
 
-    public record class RequestCapturingData(string RequestUrl, string RequestBody);
+    public record class RequestCapturingData(string RequestUrl, string RequestBody)
+    {
+        public Dictionary<string, string> RequestHeaders { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+    }
 }

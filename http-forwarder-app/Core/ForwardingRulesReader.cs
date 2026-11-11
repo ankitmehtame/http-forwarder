@@ -2,6 +2,7 @@ using http_forwarder_app.Models;
 using http_forwarder_app.Utils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
 
 namespace http_forwarder_app.Core
 {
@@ -52,8 +53,23 @@ namespace http_forwarder_app.Core
             var rulesJsonFilePath = Configuration.GetConfFilePath("rules.json");
             _logger.LogInformation("Reading rules file from {rulesJsonFilePath}", rulesJsonFilePath);
             var rulesJson = File.ReadAllText(rulesJsonFilePath);
-            var rules = JsonUtils.Deserialize<ForwardingRuleDto[]>(rulesJson) ?? [];
-            return rules.ToForwardingRules();
+            var rules = (JsonUtils.Deserialize<ForwardingRuleDto[]>(rulesJson) ?? []).ToForwardingRules();
+            foreach (var rule in rules)
+            {
+                foreach (var pattern in rule.IgnoredRequestHeaders)
+                {
+                    if (pattern == ForwardingRule.IgnoreAllRequestHeaders) continue;
+                    try
+                    {
+                        _ = new Regex(pattern);
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        _logger.LogWarning(ex, "Invalid ignoredRequestHeaders regex pattern {pattern} for rule {method} {event}", pattern, rule.Method, rule.Event);
+                    }
+                }
+            }
+            return rules;
         }
 
         private void SetState()

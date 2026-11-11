@@ -81,6 +81,41 @@ public class SerializerTests
         simplePost.Retry.Allow.ShouldBeFalse();
     }
 
+    [Theory]
+    [InlineData("ignoredRequestHeaders")]
+    [InlineData("ignoreRequestHeaders")]
+    [InlineData("IGNORErequestHEADERS")]
+    public void DeserializesIgnoredRequestHeadersAndAlias(string key)
+    {
+        var json = $$"""
+        {"method":"GET","event":"test","targetUrl":"http://example.com","{{key}}":["*","X-.*"]}
+        """;
+
+        var rule = JsonUtils.Deserialize<ForwardingRuleDto>(json)?.ToForwardingRule();
+
+        rule.ShouldNotBeNull();
+        rule.IgnoredRequestHeaders.SetEquals(["*", "X-.*"]).ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData("ignoredRequestHeaders", "ignoreRequestHeaders")]
+    [InlineData("ignoreRequestHeaders", "ignoredRequestHeaders")]
+    public void DeserializesBothIgnoredRequestHeaderKeysAsUnion(string firstKey, string secondKey)
+    {
+        var json = $$"""
+        {"method":"GET","event":"test","targetUrl":"http://example.com","{{firstKey}}":["X-.*","Authorization"],"{{secondKey}}":["*","Authorization"]}
+        """;
+
+        var rule = JsonUtils.Deserialize<ForwardingRuleDto>(json)?.ToForwardingRule();
+
+        rule.ShouldNotBeNull();
+        rule.IgnoredRequestHeaders.SetEquals(["*", "X-.*", "Authorization"]).ShouldBeTrue();
+        var serialized = JsonUtils.Serialize(rule.ToDto(), false);
+        serialized.ShouldContain("\"ignoredRequestHeaders\"");
+        serialized.ShouldNotContain("\"ignoreRequestHeaders\"");
+        JsonUtils.Deserialize<ForwardingRuleDto>(serialized)?.ToForwardingRule().ShouldBeEquivalentTo(rule);
+    }
+
     [Fact]
     public void SerializesWithContentCorrectly()
     {

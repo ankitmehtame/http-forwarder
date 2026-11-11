@@ -20,7 +20,10 @@ namespace http_forwarder_acceptance_tests
             if (request.Content != null)
             {
                 var body = await request.Content.ReadAsStringAsync(cancellationToken);
-                _context.Requests.Enqueue(new(request.RequestUri!.ToString(), body));
+                _context.Requests.Enqueue(new(request.RequestUri!.ToString(), body)
+                {
+                    RequestHeaders = request.Headers.ToDictionary(header => header.Key, header => string.Join(",", header.Value), StringComparer.OrdinalIgnoreCase)
+                });
             }
 
             return await base.SendAsync(request, cancellationToken);

@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using http_forwarder_app.Models;
+using Microsoft.Extensions.Logging;
 using Shouldly;
 using Xunit.Repeat;
 
@@ -322,6 +323,78 @@ public class ForwardingRuleTests : IDisposable
         merged.ShouldBe(expected);
     }
 
+    [Theory]
+    [InlineData("*", true)]
+    [InlineData("*", false)]
+    [InlineData(".*", true)]
+    [InlineData(".*", false)]
+    public void MergeHeaders_WithMatchAllPattern_DropsEveryCallerHeader(string pattern, bool hasConfiguredHeaders)
+    {
+        var rule = new ForwardingRule("GET", "test", "http://a.com")
+        {
+            Headers = hasConfiguredHeaders
+                ? new Dictionary<string, string> { { "Authorization", "Bearer injected" }, { "X-Rule", "configured" } }.ToImmutableDictionary()
+                : ImmutableDictionary<string, string>.Empty,
+            IgnoredRequestHeaders = new[] { pattern }.ToImmutableHashSet()
+        };
+        var requestHeaders = new Dictionary<string, string>
+        {
+            { "Authorization", "Bearer caller" },
+            { "X-Caller", "caller" },
+            { "Content-Type", "application/json" }
+        };
+        var logger = new CapturingLogger<ForwardingRule>();
+
+        var merged = rule.MergeHeaders(requestHeaders, logger);
+
+        merged.ShouldBe(rule.Headers);
+        logger.Entries.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void MergeHeaders_WithXHeaderRegex_OnlyDropsMatchingCallerHeaders(bool hasConfiguredHeaders)
+    {
+        var rule = new ForwardingRule("GET", "test", "http://a.com")
+        {
+            Headers = hasConfiguredHeaders
+                ? new Dictionary<string, string> { { "X-Rule", "configured" } }.ToImmutableDictionary()
+                : ImmutableDictionary<string, string>.Empty,
+            IgnoredRequestHeaders = new[] { "X-.*" }.ToImmutableHashSet()
+        };
+        var requestHeaders = new Dictionary<string, string>
+        {
+            { "X-Rule", "caller" },
+            { "X-Caller", "caller" },
+            { "Accept", "application/json" }
+        };
+
+        var merged = rule.MergeHeaders(requestHeaders);
+
+        merged.ShouldBe(rule.Headers.Add("Accept", "application/json"));
+    }
+
+    [Fact]
+    public void MergeHeaders_WithoutConfiguredHeaders_StillFiltersIgnoredHeadersAndContentType()
+    {
+        var rule = new ForwardingRule("GET", "test", "http://a.com")
+        {
+            HasContent = false,
+            IgnoredRequestHeaders = new[] { "Authorization" }.ToImmutableHashSet()
+        };
+        var requestHeaders = new Dictionary<string, string>
+        {
+            { "Authorization", "Bearer caller" },
+            { "Content-Type", "application/json" },
+            { "Accept", "application/json" }
+        };
+
+        var merged = rule.MergeHeaders(requestHeaders);
+
+        merged.ShouldBe(new Dictionary<string, string> { { "Accept", "application/json" } }.ToImmutableDictionary());
+    }
+
     [Fact]
     public void MergeHeaders_WithInvalidIgnoredRequestHeaderRegex_IgnoresPattern()
     {
@@ -332,9 +405,10 @@ public class ForwardingRuleTests : IDisposable
             IgnoredRequestHeaders = new string[] { "[" }.ToImmutableHashSet()
         };
         var requestHeaders = new Dictionary<string, string> { { "X-Request", "request" } };
+        var logger = new CapturingLogger<ForwardingRule>();
 
         // Act
-        var merged = rule.MergeHeaders(requestHeaders);
+        var merged = rule.MergeHeaders(requestHeaders, logger);
 
         // Assert
         var expected = new Dictionary<string, string>
@@ -343,6 +417,9 @@ public class ForwardingRuleTests : IDisposable
             { "X-Request", "request" }
         }.ToImmutableDictionary();
         merged.ShouldBe(expected);
+        var warning = logger.Entries.ShouldHaveSingleItem();
+        warning.Level.ShouldBe(LogLevel.Warning);
+        warning.Message.ShouldContain("Invalid regex pattern [");
     }
 
     [Fact]
